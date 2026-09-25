@@ -256,9 +256,21 @@ table.t tr.tot td{border-top:2px solid var(--gold)}
 .chipx .x{color:var(--red);cursor:pointer;font-weight:900}
 
 /* modal */
-.mbg{position:fixed;inset:0;background:rgba(10,26,38,.55);backdrop-filter:blur(2px);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:34px 14px;overflow-y:auto}
+.mbg{position:fixed;inset:0;background:rgba(6,15,26,.82);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:34px 14px;overflow-y:auto}
 .mbg.on{display:flex}
-.modal{background:#fff;border-radius:16px;box-shadow:var(--sh2);width:100%;max-width:680px;animation:pop .15s}
+.modal{background:#fff;border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.5),0 12px 30px rgba(0,0,0,.35);width:100%;max-width:680px;animation:pop .15s;opacity:1}
+[data-theme="dark"] .mbg{background:rgba(0,0,0,.75);backdrop-filter:blur(10px)}
+[data-theme="dark"] .modal{background:#1a2530;border:1.5px solid rgba(224,169,46,.25);box-shadow:0 30px 80px rgba(0,0,0,.75),0 0 40px rgba(224,169,46,.08)}
+/* 🚀 شريط تقدُّم علوى فورى عند التنقل بين الصفحات */
+.nav-progress{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#e0a92e,#2f6df0,#22c55e,#e0a92e);background-size:200% 100%;z-index:99999;transform-origin:0 50%;transform:scaleX(0);pointer-events:none;box-shadow:0 0 12px rgba(224,169,46,.6),0 0 24px rgba(47,109,240,.4);border-radius:0 0 3px 3px}
+.nav-progress.go{transform:scaleX(.7);transition:transform .28s cubic-bezier(.2,.9,.2,1);animation:navShift 1.2s linear infinite}
+.nav-progress.done{transform:scaleX(1);transition:transform .16s ease-out;animation:none;opacity:0;transition:transform .16s ease-out,opacity .18s ease-out .1s}
+@keyframes navShift{from{background-position:0% 0}to{background-position:200% 0}}
+@keyframes missShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px) rotate(-3deg)}40%{transform:translateX(6px) rotate(3deg)}60%{transform:translateX(-4px) rotate(-2deg)}80%{transform:translateX(4px) rotate(2deg)}}
+/* ضغطة استجابة فورية على كل زر تنقّل */
+.side a:active,.tb:active,.pill:active,.btn:active,.linkrow:active,.jlink:active{transform:scale(.985)!important;transition:transform .06s!important}
+/* أزل تأخيرات hover الأساسية للاستجابة الفورية */
+.side a,.tb,.linkrow,.btn{transition:background .12s,border-color .12s,color .12s}
 .modal.wide{max-width:1000px}
 @keyframes pop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
 .modal-h{padding:14px 18px;border-bottom:1px solid var(--line);font-weight:800;color:var(--nav2);display:flex;align-items:center;gap:9px;font-size:16px;cursor:grab;touch-action:none;user-select:none}
@@ -371,6 +383,91 @@ table.t tr.tot td{border-top:2px solid var(--gold)}
 [data-theme="dark"] .strbox-chk-big{background:linear-gradient(135deg,rgba(31,157,87,.06),rgba(224,169,46,.04))}
 [data-theme="dark"] .strbox-chk-big:has(input:checked){background:linear-gradient(135deg,rgba(31,157,87,.12),rgba(224,169,46,.1))}
 .strbox-hint{width:100%;font-size:11px;color:var(--muted);font-weight:500;margin-top:3px}
+/* ═══ 🛒 صندوق البيع لعميل آخر — تصميم بارز ومنسّق ═══ */
+.strbox.strbox-sale{border:2px solid rgba(47,109,240,.3);margin-bottom:14px;transition:.22s}
+.strbox.strbox-sale.on{border-color:#2f6df0;box-shadow:0 8px 26px rgba(47,109,240,.16),0 2px 6px rgba(47,109,240,.08)}
+.saleh{background:linear-gradient(90deg,rgba(47,109,240,.14),rgba(47,109,240,.04) 60%,transparent);padding:14px 16px !important;border-bottom:1px solid rgba(47,109,240,.18)}
+.saleh-ic{font-size:24px !important;filter:drop-shadow(0 2px 4px rgba(47,109,240,.3))}
+.saleh-txt{display:flex;flex-direction:column;gap:2px;line-height:1.3}
+.saleh-title{font-size:15.5px;font-weight:900;color:#2f6df0;letter-spacing:.2px}
+.saleh-sub{font-size:11.5px;font-weight:500;color:var(--muted)}
+.saleb{padding:16px 18px !important;background:linear-gradient(180deg,rgba(47,109,240,.02),transparent 40%)}
+.salegrid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:14px;align-items:end;margin-bottom:14px}
+.salefld{display:flex;flex-direction:column;gap:6px;min-width:0}
+.salelbl{font-size:12px;font-weight:800;color:var(--nav2);letter-spacing:.2px}
+.saleimp{width:100%;padding:12px 16px !important;font-weight:900 !important;font-size:13.5px !important;letter-spacing:.3px;border-radius:11px !important;background:linear-gradient(135deg,#2f6df0,#1e56d3) !important;color:#fff !important;border:none !important;box-shadow:0 4px 14px rgba(47,109,240,.28);transition:.18s}
+.saleimp:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(47,109,240,.36)}
+.saleimp:active{transform:translateY(0)}
+/* ─── قائمة اختيار العميل (Combobox) ─── */
+.cust-combo{position:relative}
+.cust-combo-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;background:var(--field,#fff);border:1.5px solid var(--fieldline,#d6dee5);border-radius:11px;color:var(--ink);font-size:14px;font-weight:800;cursor:pointer;transition:.15s;text-align:start;font-family:inherit;min-height:44px}
+.cust-combo-trigger:hover{border-color:#2f6df0;background:rgba(47,109,240,.03)}
+.cust-combo-trigger:focus{outline:none;border-color:#2f6df0;box-shadow:0 0 0 3px rgba(47,109,240,.18)}
+.cust-combo-sel{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:start}
+.csc-ph{color:var(--muted);font-weight:600}
+.csc-cat{display:inline-block;margin-inline-start:6px;padding:2px 8px;background:rgba(47,109,240,.12);color:#2f6df0;border-radius:6px;font-size:11px;font-weight:800;vertical-align:middle}
+.cust-combo-arrow{color:var(--muted);font-size:13px;transition:.18s;font-weight:900}
+.cust-combo-panel.open ~ .cust-combo-trigger .cust-combo-arrow,.cust-combo:has(.cust-combo-panel.open) .cust-combo-arrow{transform:rotate(180deg);color:#2f6df0}
+.cust-combo-panel{position:absolute;top:calc(100% + 6px);inset-inline-start:0;inset-inline-end:0;background:var(--card,#fff);border:1.5px solid #2f6df0;border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.22),0 4px 10px rgba(47,109,240,.15);z-index:200;display:none;animation:cccPop .18s ease;overflow:hidden}
+.cust-combo-panel.open{display:block}
+@keyframes cccPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.cust-combo-search{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(47,109,240,.06),transparent)}
+.cust-combo-search span{font-size:16px;color:#2f6df0}
+.cust-combo-search input{flex:1;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--field,#fff);color:var(--ink);font-size:13.5px;font-weight:700;font-family:inherit}
+.cust-combo-search input:focus{outline:none;border-color:#2f6df0;box-shadow:0 0 0 2px rgba(47,109,240,.14)}
+.cust-combo-list{max-height:260px;overflow-y:auto;padding:4px}
+.cust-combo-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:.12s;font-size:13.5px;font-weight:700;color:var(--ink);border:1.5px solid transparent}
+.cust-combo-item:hover{background:rgba(47,109,240,.08);border-color:rgba(47,109,240,.2)}
+.cust-combo-item.sel{background:linear-gradient(135deg,rgba(47,109,240,.14),rgba(47,109,240,.06));border-color:#2f6df0;color:#2f6df0;font-weight:900}
+.cust-combo-item .ccc-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cust-combo-item .ccc-cat{padding:3px 9px;background:rgba(47,109,240,.1);color:#2f6df0;border-radius:6px;font-size:11px;font-weight:800;flex-shrink:0}
+.cust-combo-item.sel .ccc-cat{background:#2f6df0;color:#fff}
+.cust-combo-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px;font-weight:700}
+.cust-combo-foot{padding:8px 12px;background:var(--card2);border-top:1px solid var(--line);font-size:11.5px;font-weight:700;color:var(--muted);text-align:center}
+/* Scrollbar للقائمة */
+.cust-combo-list::-webkit-scrollbar{width:8px}
+.cust-combo-list::-webkit-scrollbar-track{background:transparent}
+.cust-combo-list::-webkit-scrollbar-thumb{background:rgba(47,109,240,.3);border-radius:4px}
+.cust-combo-list::-webkit-scrollbar-thumb:hover{background:rgba(47,109,240,.5)}
+/* ─── جدول أسطر البيع ─── */
+.saletable-wrap{border:1.5px solid var(--line);border-radius:11px;overflow:hidden;background:var(--card,#fff);margin-bottom:10px}
+.saletable{width:100%;border-collapse:collapse;font-size:13px}
+.saletable thead th{background:linear-gradient(180deg,var(--card2),var(--card));padding:10px 8px;font-size:12px;font-weight:900;color:var(--nav2);text-align:center;border-bottom:1.5px solid var(--line);letter-spacing:.2px}
+.saletable tbody td{padding:8px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+.saletable tbody tr:last-child td{border-bottom:none}
+.saletable tbody tr:hover{background:rgba(47,109,240,.03)}
+.saletable input,.saletable select{width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--field,#fff);color:var(--ink);font-size:13px;font-weight:700;text-align:center;font-family:inherit;transition:.12s}
+.saletable input:focus,.saletable select:focus{outline:none;border-color:#2f6df0;box-shadow:0 0 0 2px rgba(47,109,240,.15)}
+.saletable input.svSP{border-color:rgba(224,169,46,.5);background:rgba(224,169,46,.05);font-weight:900;color:var(--gold)}
+.saletable input.svSP:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(224,169,46,.2);background:#fff}
+.saletable .svV2{font-weight:900;color:#2f6df0;font-size:13.5px;font-variant-numeric:tabular-nums}
+.saletable .svM{font-weight:900;font-size:13.5px;font-variant-numeric:tabular-nums}
+.salemore{margin-top:4px !important;font-weight:700 !important}
+.salehint{margin-top:12px;padding:11px 14px;background:linear-gradient(90deg,rgba(31,157,87,.08),rgba(47,109,240,.05));border:1px solid rgba(31,157,87,.25);border-radius:10px;font-size:12px;line-height:1.75;color:var(--nav2);font-weight:600}
+.salehint b{color:var(--green);font-weight:900}
+/* الوضع الداكن */
+[data-theme="dark"] .saleh{background:linear-gradient(90deg,rgba(47,109,240,.22),rgba(47,109,240,.08) 60%,transparent)}
+[data-theme="dark"] .cust-combo-trigger{background:var(--card2)}
+[data-theme="dark"] .cust-combo-panel{background:var(--card2);box-shadow:0 14px 40px rgba(0,0,0,.5)}
+[data-theme="dark"] .saletable input.svSP{background:rgba(224,169,46,.1)}
+[data-theme="dark"] .saletable input.svSP:focus{background:var(--card2)}
+/* موبايل */
+@media (max-width:640px){
+  .salegrid{grid-template-columns:1fr}
+  .saletable{font-size:12px}
+  .saletable thead th{padding:8px 4px;font-size:11px}
+}
+/* ═══ 🧺 صندوق تجهيز المفرش — تصميم متناسق مع البيع ═══ */
+.strbox.strbox-maf{border:2px solid rgba(224,169,46,.3);margin-top:14px;transition:.22s}
+.strbox.strbox-maf.on{border-color:var(--gold);box-shadow:0 8px 26px rgba(224,169,46,.16),0 2px 6px rgba(224,169,46,.08)}
+.mafh{background:linear-gradient(90deg,rgba(224,169,46,.14),rgba(224,169,46,.04) 60%,transparent);padding:14px 16px !important;border-bottom:1px solid rgba(224,169,46,.18)}
+.mafh-ic{font-size:24px !important;filter:drop-shadow(0 2px 4px rgba(224,169,46,.3))}
+.mafh-txt{display:flex;flex-direction:column;gap:2px;line-height:1.3}
+.mafh-title{font-size:15.5px;font-weight:900;color:var(--gold);letter-spacing:.2px}
+.mafh-sub{font-size:11.5px;font-weight:500;color:var(--muted)}
+.mafb{padding:16px 18px !important;background:linear-gradient(180deg,rgba(224,169,46,.03),transparent 40%);animation:mafExpand .28s ease}
+@keyframes mafExpand{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+[data-theme="dark"] .mafh{background:linear-gradient(90deg,rgba(224,169,46,.2),rgba(224,169,46,.06) 60%,transparent)}
 .strbox-tg{position:relative;width:38px;height:22px;flex:0 0 auto;margin-inline-end:auto;order:99}
 .strbox-tg input{position:absolute;opacity:0;pointer-events:none}
 .strbox-sw{position:absolute;inset:0;background:var(--line);border-radius:14px;cursor:pointer;transition:.2s}
@@ -579,8 +676,21 @@ html{transition:background .2s}
 @keyframes lgfloat{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-26px) rotate(6deg)}}
 .lgcard{position:relative;z-index:2;width:100%;max-width:390px;margin:14px;background:rgba(12,26,38,.72);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:34px 28px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.55);animation:lgin 1.1s cubic-bezier(.2,.9,.2,1)}
 @keyframes lgin{from{opacity:0;transform:translateY(40px) scale(.94)}to{opacity:1;transform:none}}
-.lglogo{width:104px;height:104px;border-radius:50%;margin:0 auto 14px;display:block;box-shadow:0 0 40px rgba(255,47,126,.6),0 10px 30px rgba(0,0,0,.5);animation:lglogo 4.5s ease-in-out infinite}
-@keyframes lglogo{0%,100%{transform:translateY(0) scale(1);box-shadow:0 0 40px rgba(255,47,126,.55)}50%{transform:translateY(-10px) scale(1.04);box-shadow:0 0 60px rgba(255,47,126,.85)}}
+.lglogo{width:118px;height:118px;border-radius:50%;margin:0 auto 14px;display:block;box-shadow:0 0 40px rgba(255,47,126,.6),0 10px 30px rgba(0,0,0,.5);animation:lglogoFloat 6s ease-in-out infinite;position:relative;z-index:3}
+@keyframes lglogoFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14px) scale(1.05)}}
+/* ═══ إطار شعار الشركة مضىء وجذاب — Slow motion ═══ */
+.lglogo-wrap{position:relative;width:200px;height:200px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;isolation:isolate}
+.lglogo-wrap .lglogo{margin:0}
+/* حلقة خارجية دوّارة بألوان متعددة */
+.lglogo-wrap::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#ff2f7e,#e0a92e,#22d3ee,#a78bfa,#22c55e,#ff2f7e);animation:lglogoRing 8s linear infinite;filter:blur(2px);opacity:.65;z-index:1}
+.lglogo-wrap::after{content:"";position:absolute;inset:8px;border-radius:50%;background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.35),rgba(255,255,255,.05) 50%,transparent 70%);animation:lglogoHalo 5s ease-in-out infinite;z-index:2;backdrop-filter:blur(4px)}
+@keyframes lglogoRing{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes lglogoHalo{0%,100%{opacity:.55;transform:scale(1);box-shadow:0 0 40px 8px rgba(255,47,126,.35),0 0 80px 18px rgba(224,169,46,.25)}50%{opacity:1;transform:scale(1.08);box-shadow:0 0 60px 14px rgba(255,47,126,.55),0 0 110px 28px rgba(224,169,46,.4)}}
+/* شرارات مضيئة تدور حول اللوجو */
+.lglogo-spark{position:absolute;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle,#fff,#ffd479);box-shadow:0 0 12px rgba(255,255,255,.9),0 0 24px rgba(224,169,46,.7);z-index:4;animation:lglogoOrbit 7s linear infinite}
+.lglogo-spark.s2{background:radial-gradient(circle,#fff,#ff9dc4);box-shadow:0 0 12px rgba(255,255,255,.9),0 0 24px rgba(255,47,126,.7);animation-duration:9s;animation-delay:-2s}
+.lglogo-spark.s3{background:radial-gradient(circle,#fff,#a5f3fc);box-shadow:0 0 12px rgba(255,255,255,.9),0 0 24px rgba(34,211,238,.7);animation-duration:11s;animation-delay:-4s}
+@keyframes lglogoOrbit{from{transform:rotate(0deg) translateX(96px) rotate(0deg)}to{transform:rotate(360deg) translateX(96px) rotate(-360deg)}}
 .lgco{font-size:30px;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 2px 14px rgba(255,47,126,.4)}
 .lgsub{font-size:12.5px;color:#e0a92e;font-weight:700;margin-top:3px}
 .lgverse{margin:16px 0;padding:12px;border-radius:14px;background:rgba(224,169,46,.1);border:1px solid rgba(224,169,46,.25);color:#f3e3bf;font-size:15px;line-height:1.9;font-weight:600}
@@ -956,8 +1066,26 @@ const App={
    if(!p.ip&&this._sessionIP)p.ip=this._sessionIP;
    this.db.postings.push(p);return p},
 
- go(r,arg){if(this.auth.user&&!this.canPage(r)&&Pages[r]&&r!=="statement"&&r!=="report"){toast("ليس لديك صلاحية لهذا القسم","err");r="dashboard";arg=null}
-   const nav=this.route!==r;this.route=r;this.arg=arg||null;window.scrollTo(0,0);this.render();document.getElementById('side').classList.remove('open');if(nav&&this.playSound)this.playSound("nav")},
+ go(r,arg){
+   // ✅ صلاحيات
+   if(this.auth.user&&!this.canPage(r)&&Pages[r]&&r!=="statement"&&r!=="report"){toast("ليس لديك صلاحية لهذا القسم","err");r="dashboard";arg=null}
+   // ✅ صفحة غير معرَّفة → إلى لوحة التحكم بدلاً من فشل صامت
+   if(!Pages[r]){console.warn("Unknown route:",r);r="dashboard";arg=null;}
+   const nav=this.route!==r;this.route=r;this.arg=arg||null;window.scrollTo(0,0);
+   // 🚀 استجابة فورية: شريط تقدُّم علوى + إغلاق القوائم فى نفس اللحظة
+   this._navStart&&this._navStart();
+   const side=document.getElementById('side');if(side)side.classList.remove('open');
+   try{this.closeTopMenus&&this.closeTopMenus();}catch(e){}
+   if(nav&&this.playSound){try{this.playSound("nav")}catch(e){}}
+   // ✅ ارسم الصفحة داخل try/catch — أى خطأ يعرض رسالة بدل شاشة بيضاء
+   try{this.render();}
+   catch(e){console.error("Render failed for",r,":",e);
+     const v=document.getElementById("view");if(v)v.innerHTML=`<div class="card"><div class="card-b" style="padding:24px;text-align:center"><div style="font-size:48px;margin-bottom:8px">⚠️</div><div style="font-size:16px;font-weight:900;color:var(--red);margin-bottom:8px">تعذّر عرض الصفحة</div><div class="hint" style="line-height:1.7">حدث خطأ أثناء رسم الصفحة. الرسالة الفنية:<br><code style="background:var(--card2);padding:4px 8px;border-radius:6px">${(e&&e.message||e)+''}</code></div><div style="margin-top:14px"><button class="btn blue sm" onclick="App.go('dashboard')">↩ العودة للوحة التحكم</button></div></div></div>`;
+     try{toast("⚠️ فشل عرض الصفحة — راجع الـ Console (F12)","err");}catch(_){}}
+   this._navEnd&&this._navEnd();
+ },
+ _navStart(){let bar=document.getElementById("navProgress");if(!bar){bar=document.createElement("div");bar.id="navProgress";bar.className="nav-progress";document.body.appendChild(bar);}bar.classList.remove("done");void bar.offsetWidth;bar.classList.add("go");},
+ _navEnd(){const bar=document.getElementById("navProgress");if(!bar)return;requestAnimationFrame(()=>{bar.classList.remove("go");bar.classList.add("done");setTimeout(()=>{bar.classList.remove("done");bar.classList.remove("go");},320);});},
  switchSeason(s){this.db.season=s;this.save();this.render()},
  newSeason(){if(!this.auth.user||!this.auth.user.admin){toast("للمدير فقط","err");return}const y=new Date().getFullYear();
    this.modal("🗓️ موسم جديد",`<div class="fg">
@@ -1109,7 +1237,14 @@ const App={
  toggleSidebar(){const app=document.querySelector('.app');const hide=!app.classList.contains('sidehide');app.classList.toggle('sidehide',hide);try{localStorage.setItem(this.SIDE_KEY,hide?"1":"0")}catch(e){}const b=$("#sideToggle");if(b)b.textContent=hide?"▶":"◀";},
  applySidebar(){let hide=false;try{hide=localStorage.getItem(this.SIDE_KEY)==="1"}catch(e){}const app=document.querySelector('.app');if(app)app.classList.toggle('sidehide',hide);const b=$("#sideToggle");if(b)b.textContent=hide?"▶":"◀";},
  qs(s){return "'"+String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"'"},
- canPage(route){const u=this.auth.user;if(!u)return false;if(u.admin)return true;return route==="dashboard"||!!(u.perms&&u.perms[route])},
+ canPage(route){const u=this.auth.user;if(!u)return false;if(u.admin)return true;
+   // صفحات مسموحة للجميع تلقائياً
+   if(route==="dashboard"||route==="statement"||route==="report")return true;
+   const perms=u.perms;if(!perms)return false;
+   // يدعم الـ perms كـ object {route:true} أو Array [route1,route2,...]
+   if(Array.isArray(perms))return perms.indexOf(route)>=0;
+   return !!perms[route];
+ },
  _navItems(items){const out=[];items.forEach(it=>{if(it[0]==="_g")out.push(it);else if(this.canPage(it[0]))out.push(it)});
    // drop group headers with no visible page after them
    return out.filter((it,i)=>it[0]!=="_g"||(out[i+1]&&out[i+1][0]!=="_g"))},
@@ -1890,8 +2025,12 @@ function statementView(id,opt){opt=opt||{};const a=App.acct(id);const canEd=App.
   const cashBtns=opt.cash?`<button class="btn green sm" onclick="App.movement('${id}','in')">＋ وارد (قبض)</button><button class="btn danger sm" onclick="App.movement('${id}','out')">－ منصرف (صرف)</button>`:"";
   const editBtns=(App.auth.user&&(App.auth.user.admin||App.can("accounts")))?`<button class="btn gold sm" onclick="App.editAccountSmart('${id}')">✏️ تعديل الحساب</button><button class="btn danger sm" onclick="App.delAcct('${id}')">🗑️ حذف الحساب</button>`:"";
   const fuelBtns=App.isFuelAcct(a)?`<button class="btn gold sm" onclick="App.fuelInvoice('${id}')">⛽ فاتورة سولار/بنزين</button><button class="btn gh sm" onclick="App.fuelStatement('${id}')">⛽ كشف السولار التفصيلي</button><button class="btn gh sm" onclick="App.exportFuel('${id}')">📊 Excel السولار</button>`:"";
+  // 🧾 كشف مجمّع للعميل — يجمّع كل بيوعات نفس اليوم من كل الشركاء لهذا العميل
+  const isCust=a.node==="customer";
+  const aggMode=isCust&&App._stmtAgg===id;
+  const custAggBtn=isCust?`<button class="btn ${aggMode?'green':'gh'} sm" onclick="App._toggleStmtAgg('${id}')" title="${aggMode?'العودة للعرض التفصيلى':'جمّع كل بيوعات نفس اليوم من كل الشركاء'}">${aggMode?'📄 تفصيلى':'📚 كشف مجمّع بالأيام'}</button>`:"";
   return head(NODES[a.node].ic,a.name,NODES[a.node].name+" · كود "+a.code,
-    `<select onchange="App.go('statement',{id:this.value})" style="padding:7px 10px;border-radius:9px;border:1px solid #d6dee5">${App.accountSelect(null,id)}</select>${cashBtns}${fuelBtns}${editBtns}<button class="btn gh sm" onclick="App.printStatement('${id}')">🖨️ طباعة/PDF</button><button class="btn gh sm" onclick="App.exportStatement('${id}')">📊 Excel</button>`)+`
+    `<select onchange="App.go('statement',{id:this.value})" style="padding:7px 10px;border-radius:9px;border:1px solid #d6dee5">${App.accountSelect(null,id)}</select>${cashBtns}${custAggBtn}${fuelBtns}${editBtns}<button class="btn gh sm" onclick="App.printStatement('${id}')">🖨️ طباعة/PDF</button><button class="btn gh sm" onclick="App.exportStatement('${id}')">📊 Excel</button>`)+`
   <div class="card"><div class="card-b" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
     <div class="field"><label>من تاريخ</label><input type="date" id="sfFrom" value="${esc(from)}"></div>
     <div class="field"><label>إلى تاريخ</label><input type="date" id="sfTo" value="${esc(to)}"></div>
@@ -1901,15 +2040,69 @@ function statementView(id,opt){opt=opt||{};const a=App.acct(id);const canEd=App.
   <div class="grid kpis" style="margin-bottom:14px">
     ${kpi("رصيد افتتاحي",m2(S.opening),"",'b','🔹')}${kpi("إجمالي وارد/مدين",m2(S.dr),"",'g','⬅️')}
     ${kpi("إجمالي منصرف/دائن",m2(S.cr),"",'r','➡️')}${kpi("الرصيد الحالي",balShow(S.closing),S.closing<0?'دائن (له)':S.closing>0?'مدين (عليه)':'متزن',S.closing<0?'g':S.closing>0?'r':'n','💠')}</div>
-  <div class="card"><div class="card-h">📄 حركات الحساب</div><div class="card-b p0"><div class="tw">
+  <div class="card"><div class="card-h">📄 ${aggMode?'كشف مجمّع بالأيام — بيوعات كل الشركاء لهذا العميل':'حركات الحساب'}</div><div class="card-b p0"><div class="tw">
+   ${aggMode?App._renderCustAggTable(id,S):`
    <table class="t"><thead><tr><th>رقم القيد</th><th>التاريخ</th><th>مستند</th><th class="r">البيان</th><th>الطرف المقابل</th><th>مركز التكلفة</th><th class="g">${opt.cash?'وارد':'مدين'}</th><th class="g">${opt.cash?'منصرف':'دائن'}</th><th class="g">الرصيد</th><th>إجراءات</th></tr></thead><tbody>
    <tr class="tot"><td></td><td></td><td></td><td class="r">رصيد افتتاحي</td><td></td><td></td><td></td><td></td><td class="num ${balCls(S.opening)}">${balShow(S.opening)}</td><td></td></tr>
    ${S.rows.map(r=>{const cr=App.postCrop(r.p);return `<tr><td><span class="jlink" onclick="App.openEntrySource('${r.p.id}')" title="فتح مصدر القيد وتعديله">#${r.p.no||''}</span></td><td>${esc(fmtDate(r.p.date))}</td><td>${esc(r.p.doc||'')}</td><td class="r">${esc(r.p.desc||'')}</td><td>${esc(r.other)}</td><td>${cr?esc(App.cropLabel(cr.loc,cr.crop)):'—'}</td>
      <td class="num">${r.d?money(r.d):''}</td><td class="num">${r.c?money(r.c):''}</td><td class="num ${balCls(r.bal)}">${balShow(r.bal)}</td>
      <td style="white-space:nowrap">${r.p.attId?`<button class="ib" onclick="Att.view('${r.p.attId}')" title="مرفق">📎</button>`:''}${canEd?`<button class="ib" onclick="App.editPosting('${r.p.id}')" title="تعديل الحركة">✏️</button><button class="ib" onclick="App.delPosting('${r.p.id}')" title="حذف الحركة">🗑️</button>`:''}</td></tr>`}).join("")||`<tr><td colspan="10" class="empty">لا حركات</td></tr>`}
    <tr class="tot"><td></td><td></td><td></td><td class="r">الإجمالي / الرصيد</td><td></td><td></td><td class="num">${money(S.dr)}</td><td class="num">${money(S.cr)}</td><td class="num ${balCls(S.closing)}">${balShow(S.closing)}</td><td></td></tr>
-   </tbody></table></div></div></div>`;
+   </tbody></table>`}</div></div></div>`;
 }
+/* 📚 كشف مجمّع لعميل — تجميع بيوعات نفس اليوم من كل الشركاء */
+App._toggleStmtAgg=function(id){if(this._stmtAgg===id){this._stmtAgg=null;}else{this._stmtAgg=id;}this.render();};
+App._renderCustAggTable=function(custId,S){
+  // اجمع بيوعات هذا العميل من daily supplies
+  const byDay={};// {date: {arab:{qty,value}, export:{...}, local:{...}, partners:{}, entries:[]}}
+  (this.db.daily||[]).forEach(e=>{if(e.kind!=="supply"||!e.saleRows||!e.saleRows.length||e.saleCustomerId!==custId)return;
+    const d=e.date;if(!byDay[d])byDay[d]={arab:{q:0,v:0,c:0},export:{q:0,v:0,c:0},local:{q:0,v:0,c:0},partnerIds:{},entries:[]};
+    const D=byDay[d];D.entries.push(e);if(e.partnerId)D.partnerIds[e.partnerId]=1;
+    e.saleRows.forEach(r=>{const b=D[r.band];if(!b)return;b.q+=Number(r.qty)||0;b.v+=Number(r.value)||0;b.c+=(Number(r.qty)||0)*(Number(r.unitCost)||0);});
+  });
+  const dates=Object.keys(byDay).sort();
+  if(!dates.length)return`<div class="empty" style="padding:30px;text-align:center"><div style="font-size:44px;margin-bottom:8px">📭</div>لا بيوعات مسجّلة عبر توريد الشركاء لهذا العميل</div>`;
+  // مبلغ الافتتاح ثم الأيام
+  let bal=S.opening;
+  const partnerName=pid=>{const pa=this.partnerAcct(pid);return pa?pa.name:"—";};
+  const rows=dates.map(d=>{const D=byDay[d];const dayVal=D.arab.v+D.export.v+D.local.v;const dayCost=D.arab.c+D.export.c+D.local.c;const margin=dayVal-dayCost;bal+=dayVal;
+    const pids=Object.keys(D.partnerIds);const partners=pids.map(partnerName).join("، ");
+    const bandTxt=[];if(D.arab.q>0)bandTxt.push(`عربى: ${numf(D.arab.q)} كرتون`);if(D.export.q>0)bandTxt.push(`تصدير: ${numf(D.export.q)} كرتون`);if(D.local.q>0)bandTxt.push(`محلى: ${numf(D.local.q)} كجم`);
+    return `<tr class="linkrow" onclick="App._showAggDayDetail('${custId}','${d}')" title="اضغط لعرض الحركات التفصيلية">
+      <td>${esc(fmtDate(d))}</td>
+      <td class="r"><b>${bandTxt.join(" · ")}</b><br><span class="hint" style="font-size:11.5px">من: ${esc(partners)} (${pids.length} شريك) · ${D.entries.length} إذن</span></td>
+      <td class="num">${money(D.arab.v)}</td><td class="num">${money(D.export.v)}</td><td class="num">${money(D.local.v)}</td>
+      <td class="num"><b style="color:var(--blue)">${money(dayVal)}</b></td>
+      <td class="num" style="color:var(--green)"><b>${money(margin)}</b></td>
+      <td class="num ${balCls(bal)}">${balShow(bal)}</td>
+    </tr>`;}).join("");
+  const T={arab:{q:0,v:0,c:0},export:{q:0,v:0,c:0},local:{q:0,v:0,c:0}};
+  dates.forEach(d=>{["arab","export","local"].forEach(b=>{T[b].q+=byDay[d][b].q;T[b].v+=byDay[d][b].v;T[b].c+=byDay[d][b].c;});});
+  const gt=T.arab.v+T.export.v+T.local.v,gc=T.arab.c+T.export.c+T.local.c,gm=gt-gc;
+  return `<table class="t"><thead><tr><th>التاريخ</th><th class="r">التفصيل</th><th>كرتون عربى</th><th>كرتون تصدير</th><th>محلى</th><th>إجمالى البيع</th><th>هامش الربح</th><th>الرصيد</th></tr></thead><tbody>
+   <tr class="tot"><td></td><td class="r">رصيد افتتاحى</td><td></td><td></td><td></td><td></td><td></td><td class="num ${balCls(S.opening)}">${balShow(S.opening)}</td></tr>
+   ${rows}
+   <tr class="tot"><td></td><td class="r">الإجمالى</td><td class="num">${money(T.arab.v)}</td><td class="num">${money(T.export.v)}</td><td class="num">${money(T.local.v)}</td><td class="num">${money(gt)}</td><td class="num" style="color:var(--green)">${money(gm)}</td><td class="num ${balCls(bal)}">${balShow(bal)}</td></tr>
+  </tbody></table>
+  <div class="hint" style="padding:10px 16px;background:rgba(31,157,87,.05);border-top:1px solid var(--line)">💡 اضغط على أى سطر لعرض التفاصيل الكاملة لبيوعات هذا اليوم — من أى شريك وبأى إذن.</div>`;
+};
+App._showAggDayDetail=function(custId,date){
+  const entries=(this.db.daily||[]).filter(e=>e.kind==="supply"&&e.saleCustomerId===custId&&e.date===date);
+  if(!entries.length)return;
+  const rows=[];
+  entries.forEach(e=>{const pa=this.partnerAcct(e.partnerId);(e.saleRows||[]).forEach(r=>{
+    const bandLabel=r.band==="arab"?"كرتون عربى":r.band==="export"?"كرتون تصدير":"محلى ("+(App.varName(r.varId))+" — "+(r.grade||'')+")";
+    rows.push({partner:pa?pa.name:"—",doc:e.doc||"—",entryId:e.id,band:bandLabel,qty:r.qty,unitCost:r.unitCost,salePrice:r.salePrice,value:r.value,margin:(r.qty*(r.salePrice-r.unitCost))||0});
+  });});
+  const t=rows.reduce((s,r)=>{s.qty+=r.qty;s.value+=r.value;s.margin+=r.margin;return s;},{qty:0,value:0,margin:0});
+  this.modal("📋 تفاصيل بيوعات يوم "+esc(fmtDate(date)),`
+    <div class="tw"><table class="t"><thead><tr><th>الشريك</th><th>الإذن</th><th class="r">التصنيف</th><th>الكمية</th><th>سعر التكلفة</th><th>سعر البيع</th><th>القيمة</th><th>الهامش</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr class="linkrow" onclick="App.closeModal();App.editStrawInvoice('${r.entryId}')" title="فتح إذن التوريد"><td>${esc(r.partner)}</td><td>${esc(r.doc)}</td><td class="r">${esc(r.band)}</td><td class="num">${numf(r.qty)}</td><td class="num">${money(r.unitCost)}</td><td class="num">${money(r.salePrice)}</td><td class="num"><b>${money(r.value)}</b></td><td class="num" style="color:var(--green)"><b>${money(r.margin)}</b></td></tr>`).join("")}
+    <tr class="tot"><td colspan="3" class="r">الإجمالى</td><td class="num">${numf(t.qty)}</td><td></td><td></td><td class="num">${money(t.value)}</td><td class="num">${money(t.margin)}</td></tr>
+    </tbody></table></div>
+    <div class="hint" style="margin-top:8px">💡 اضغط على أى سطر لفتح إذن التوريد الأصلى للتعديل.</div>`,
+    `<button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);
+};
 
 /* movement modal (وارد / منصرف) for cash sources */
 App.movement=function(sourceId,dir){const src=this.acct(sourceId);
@@ -2044,8 +2237,8 @@ App.strawForm=function(pfx,s,opts){s=s||{};opts=opts||{};const vs=this.db.variet
     ${localRows.map((l,i)=>App._strawLocRow(pfx,i,l)).join("")}
    </tbody></table>
    <button class="btn gh sm" style="margin-top:4px" onclick="App._strawAddRow('${pfx}')">＋ صنف محلي</button>
-   ${cartons?App._strawMafBox(pfx,s.mafrash||{}):''}
    ${App._strawSaleBox(pfx,s,custs)}
+   ${cartons?App._strawMafBox(pfx,s.mafrash||{}):''}
    <div class="sttotals">
      ${cartons?`<span class="pill b">إجمالي الكرتون (شراء): <span id="${pfx}tCarton">0.00</span></span>`:''}
      <span class="pill gold">قيمة الشراء (المحلي): <span id="${pfx}tLocal">0.00</span></span>
@@ -2055,25 +2248,87 @@ App.strawForm=function(pfx,s,opts){s=s||{};opts=opts||{};const vs=this.db.variet
    </div></div>`;
 };
 
-/* ===== 🛒 صندوق البيع لعميل آخر — أصناف/كراتين + سعر بيع ===== */
+/* ===== 🛒 صندوق البيع لعميل آخر — يظهر أعلى شاشة التوريد ===== */
 App._strawSaleBox=function(pfx,s,custs){s=s||{};const sale=s.sale||{on:false,customerId:null,rows:[]};
   const rows=sale.rows&&sale.rows.length?sale.rows:[{band:"arab"}];
-  return `<div class="strbox strbox-sale strbox-cust ${sale.on?'on':''}" style="border-color:${sale.on?'var(--blue)':''}">
-    <div class="strbox-h"><label class="strbox-tg"><input type="checkbox" id="${pfx}SaleOn" ${sale.on?'checked':''} onchange="App._strawSaleTog('${pfx}');App.playSound&&App.playSound('switch')"><span class="strbox-sw"></span></label><span class="strbox-ic">🛒</span><span>بيع لعميل آخر (اختياري) — العميل يصبح مدين بقيمة البيع، والفرق مع سعر الشراء إيراد للملك</span></div>
-    <div id="${pfx}SaleWrap" class="strbox-b" style="display:${sale.on?'block':'none'};padding:10px 12px">
-      <div class="field" style="margin-bottom:10px"><label>👤 العميل</label>
-        <select id="${pfx}Cust" onchange="App._strawCalc('${pfx}')">
-          <option value="">— اختر العميل —</option>
-          ${custs.map(c=>`<option value="${c.id}" ${sale.customerId===c.id?'selected':''}>${esc(c.name)}${c.cat?" ("+esc(c.cat)+")":""}</option>`).join("")}
-        </select>
+  const selCust=sale.customerId?custs.find(c=>c.id===sale.customerId):null;
+  const selLabel=selCust?(esc(selCust.name)+(selCust.cat?' <span class="csc-cat">'+esc(selCust.cat)+'</span>':'')):'<span class="csc-ph">— اختر العميل من القائمة —</span>';
+  return `<div class="strbox strbox-sale strbox-cust ${sale.on?'on':''}">
+    <div class="strbox-h saleh">
+      <label class="strbox-tg"><input type="checkbox" id="${pfx}SaleOn" ${sale.on?'checked':''} onchange="App._strawSaleTog('${pfx}');App.playSound&&App.playSound('switch')"><span class="strbox-sw"></span></label>
+      <span class="strbox-ic saleh-ic">🛒</span>
+      <div class="saleh-txt"><span class="saleh-title">بيع لعميل آخر</span><span class="saleh-sub">العميل يصبح مدين بقيمة البيع، والفرق مع سعر الشراء إيراد للملك، ويظهر فى قائمة الدخل</span></div>
+    </div>
+    <div id="${pfx}SaleWrap" class="strbox-b saleb" style="display:${sale.on?'block':'none'}">
+      <div class="salegrid">
+        <div class="salefld salefld-cust">
+          <label class="salelbl">👤 العميل</label>
+          <div class="cust-combo" id="${pfx}CustCombo">
+            <button type="button" class="cust-combo-trigger" onclick="App._strawCustToggle('${pfx}')">
+              <span class="cust-combo-sel" id="${pfx}CustLabel">${selLabel}</span>
+              <span class="cust-combo-arrow">▾</span>
+            </button>
+            <div class="cust-combo-panel" id="${pfx}CustPanel">
+              <div class="cust-combo-search"><span>🔍</span><input id="${pfx}CustSearch" placeholder="ابحث بالاسم أو التصنيف…" autocomplete="off" oninput="App._strawCustFilter('${pfx}')"></div>
+              <div class="cust-combo-list" id="${pfx}CustList">
+                ${custs.map(c=>`<div class="cust-combo-item ${sale.customerId===c.id?'sel':''}" data-id="${c.id}" data-name="${esc((c.name||'').toLowerCase())}" data-cat="${esc((c.cat||'').toLowerCase())}" onclick="App._strawCustPick('${pfx}','${c.id}',this)"><span class="ccc-nm">${esc(c.name)}</span>${c.cat?`<span class="ccc-cat">${esc(c.cat)}</span>`:''}</div>`).join("")||`<div class="cust-combo-empty">— لا عملاء —</div>`}
+              </div>
+              <div class="cust-combo-foot"><span id="${pfx}CustCount">${custs.length} عميل</span></div>
+            </div>
+            <input type="hidden" id="${pfx}Cust" value="${sale.customerId||''}">
+          </div>
+        </div>
+        <div class="salefld salefld-btn">
+          <label class="salelbl">📥 جلب الكميات</label>
+          <button type="button" class="btn blue saleimp" onclick="App._strawImportQty('${pfx}')" title="ينسخ الكميات المدخلة فى التوريد أعلاه — اكتب سعر البيع فقط">📥 استيراد الكميات من التوريد</button>
+        </div>
       </div>
-      <table class="stloc"><thead><tr><th style="width:22%">التصنيف</th><th style="width:18%">الصنف/الدرجة</th><th style="width:14%">الكمية</th><th style="width:14%">سعر البيع</th><th style="width:16%">قيمة البيع</th><th style="width:16%">هامش الربح</th><th style="width:32px"></th></tr></thead><tbody id="${pfx}saleBody">
-      ${rows.map((r,i)=>App._strawSaleRow(pfx,i,r)).join("")}
-      </tbody></table>
-      <button class="btn gh sm" style="margin-top:4px" onclick="App._strawSaleAddRow('${pfx}')">＋ سطر بيع</button>
-      <div class="strbox-hint" style="margin-top:8px">لكل سطر: اختر التصنيف (كرتون عربى/تصدير/محلى بالصنف والدرجة) + الكمية + سعر البيع. سعر الشراء يُؤخذ تلقائياً من بيانات التوريد أعلاه. القيمة تُقيَّد على العميل مباشرةً، والفرق يظهر إيراد للملك بنفس تصنيف البند.</div>
+      <div class="saletable-wrap">
+        <table class="saletable"><thead><tr><th style="width:20%">التصنيف</th><th style="width:20%">الصنف/الدرجة</th><th style="width:12%">الكمية</th><th style="width:14%">سعر البيع</th><th style="width:14%">قيمة البيع</th><th style="width:14%">هامش الربح</th><th style="width:36px"></th></tr></thead><tbody id="${pfx}saleBody">
+        ${rows.map((r,i)=>App._strawSaleRow(pfx,i,r)).join("")}
+        </tbody></table>
+      </div>
+      <button type="button" class="btn gh sm salemore" onclick="App._strawSaleAddRow('${pfx}')">＋ سطر بيع يدوى</button>
+      <div class="salehint">💡 <b>عند الحفظ:</b> قيد بيع فى حساب العميل بالقيمة، والفرق يُقيَّد إيراد فى قائمة الدخل. بيان العميل يوضّح مصدر التوريد (الشريك). لو ورّد شركاء مختلفون نفس اليوم لنفس العميل — الكميات تُجمَّع تلقائياً فى كشف العميل مع إمكانية عرض التفصيل.</div>
     </div>
   </div>`;};
+/* 🎯 فتح/غلق قائمة اختيار العميل */
+App._strawCustToggle=function(pfx){const panel=$("#"+pfx+"CustPanel");if(!panel)return;const opening=!panel.classList.contains("open");
+  // اقفل أى قائمة أخرى مفتوحة
+  document.querySelectorAll(".cust-combo-panel.open").forEach(p=>{if(p!==panel)p.classList.remove("open");});
+  panel.classList.toggle("open",opening);
+  if(opening){setTimeout(()=>{const s=$("#"+pfx+"CustSearch");if(s){s.focus();s.select&&s.select();}},60);
+    // click outside → close
+    const off=(e)=>{if(!panel.contains(e.target)&&!e.target.closest(".cust-combo-trigger")){panel.classList.remove("open");document.removeEventListener("click",off,true);}};
+    setTimeout(()=>document.addEventListener("click",off,true),50);
+  }};
+/* 👤 اختيار عميل */
+App._strawCustPick=function(pfx,id,el){const hid=$("#"+pfx+"Cust");if(hid)hid.value=id;
+  const lbl=$("#"+pfx+"CustLabel");const item=el;if(lbl&&item){const nm=item.querySelector(".ccc-nm");const ct=item.querySelector(".ccc-cat");lbl.innerHTML=(nm?nm.textContent:"")+(ct?' <span class="csc-cat">'+ct.textContent+'</span>':'');}
+  document.querySelectorAll("#"+pfx+"CustList .cust-combo-item").forEach(x=>x.classList.remove("sel"));if(el)el.classList.add("sel");
+  const panel=$("#"+pfx+"CustPanel");if(panel)panel.classList.remove("open");
+  this._strawCalc(pfx);};
+/* 🔍 فلترة القائمة أثناء الكتابة */
+App._strawCustFilter=function(pfx){const q=($("#"+pfx+"CustSearch").value||"").toLowerCase().trim();const list=$("#"+pfx+"CustList");if(!list)return;
+  let shown=0,tot=0;list.querySelectorAll(".cust-combo-item").forEach(it=>{tot++;if(!q){it.style.display="";shown++;return;}const nm=it.getAttribute("data-name")||"";const ct=it.getAttribute("data-cat")||"";const hit=nm.indexOf(q)>=0||ct.indexOf(q)>=0;it.style.display=hit?"":"none";if(hit)shown++;});
+  const cnt=$("#"+pfx+"CustCount");if(cnt)cnt.textContent=q?(shown+" من "+tot+" تطابق"):(tot+" عميل");};
+/* 📥 استيراد الكميات من التوريد أعلاه — سعر البيع يبقى فارغاً لتكتبه أنت */
+App._strawImportQty=function(pfx){const g=id=>Number(($("#"+pfx+id)||{}).value)||0;
+  const arabQ=g("caQ"),expQ=g("ceQ");
+  // اجمع صفوف المحلى (خرط/فرزة)
+  const localRows=[];$("#"+pfx+"locBody").querySelectorAll("tr").forEach(tr=>{const q=Number((tr.querySelector(".lvQ")||{}).value)||0;if(q<=0)return;
+    const v=(tr.querySelector(".lvV")||{}).value;const gr=(tr.querySelector(".lvG")||{}).value;localRows.push({band:"local",varId:v,grade:gr,qty:q,salePrice:""});});
+  const body=$("#"+pfx+"saleBody");if(!body)return;
+  // ابنى الأسطر — الكمية جاهزة، سعر البيع فارغ ينتظر إدخال المستخدم
+  const newRows=[];
+  if(arabQ>0)newRows.push({band:"arab",qty:arabQ,salePrice:""});
+  if(expQ>0)newRows.push({band:"export",qty:expQ,salePrice:""});
+  newRows.push(...localRows);
+  if(!newRows.length){toast("لا توجد كميات فى التوريد أعلاه — أدخل الكميات أولاً","err");return;}
+  body.innerHTML="";newRows.forEach((r,i)=>body.insertAdjacentHTML("beforeend",App._strawSaleRow(pfx,i,r)));
+  this._strawCalc(pfx);toast("✅ تم استيراد "+newRows.length+" سطر — اكتب سعر البيع فقط لكل سطر","ok");
+  // ركّز مباشرة على أول حقل سعر بيع فارغ
+  setTimeout(()=>{const first=body.querySelector(".svSP");if(first)first.focus();},80);};
 App._strawSaleRow=function(pfx,i,r){r=r||{};const vs=App.db.varieties;
   return `<tr id="${pfx}sr${i}"><td>
      <select class="svBand" onchange="App._strawSaleBandCh(this);App._strawCalc('${pfx}')">
@@ -2138,8 +2393,12 @@ App._strawCalc=function(pfx){const g=id=>Number(($("#"+pfx+id)||{}).value)||0;
 };
 App._strawMafBox=function(pfx,m){m=m||{};const mafs=this.db.mafarish||[];
   return `<div class="strbox strbox-maf${m.on?' on':''}">
-    <div class="strbox-h"><label class="strbox-tg"><input type="checkbox" id="${pfx}MafOn" ${m.on?'checked':''} onchange="App._strawMafTog('${pfx}');App.playSound&&App.playSound('switch')"><span class="strbox-sw"></span></label><span class="strbox-ic">🧺</span><span>تجهيز في مفرش (برانيك)</span></div>
-    <div id="${pfx}MafWrap" class="strbox-b" style="display:${m.on?'flex':'none'}">
+    <div class="strbox-h mafh">
+      <label class="strbox-tg"><input type="checkbox" id="${pfx}MafOn" ${m.on?'checked':''} onchange="App._strawMafTog('${pfx}');App.playSound&&App.playSound('switch')"><span class="strbox-sw"></span></label>
+      <span class="strbox-ic mafh-ic">🧺</span>
+      <div class="mafh-txt"><span class="mafh-title">تجهيز فى مفرش (برانيك)</span><span class="mafh-sub">فعّل التبديل لإظهار الحقول — يُقيَّد الخام والتجهيز فى حساب المفرش</span></div>
+    </div>
+    <div id="${pfx}MafWrap" class="strbox-b mafb" style="display:${m.on?'flex':'none'}">
       <div class="strbox-fld" style="min-width:200px;flex:1.4"><label>المفرش</label><select id="${pfx}Maf" onchange="App._strawMafPrice('${pfx}',1)">${mafs.map(x=>`<option value="${x.id}" data-p="${x.pricePer}" ${m.mafId===x.id?'selected':''}>${esc(x.name)} — ${money(x.pricePer)}/برنيكة</option>`).join("")||'<option value="">— أضف مفرشاً من الإعدادات —</option>'}</select></div>
       <div class="strbox-fld" style="width:110px;flex:0 0 110px"><label>عدد البرانيك</label><input type="number" step="0.01" id="${pfx}MafN" value="${m.count||''}" oninput="App._strawCalc('${pfx}')"></div>
       <div class="strbox-fld" style="width:120px;flex:0 0 120px"><label>سعر البرنيكة</label><input type="number" step="0.01" id="${pfx}MafP" value="${m.price||''}" oninput="App._strawCalc('${pfx}')"></div>
@@ -2149,11 +2408,37 @@ App._strawMafBox=function(pfx,m){m=m||{};const mafs=this.db.mafarish||[];
     </div>
   </div>`;
 };
-App._strawMafTog=function(pfx){const on=$("#"+pfx+"MafOn").checked;const w=$("#"+pfx+"MafWrap");if(w)w.style.display=on?"flex":"none";if(on)this._strawMafPrice(pfx);this._strawCalc(pfx);};
+App._strawMafTog=function(pfx){const on=$("#"+pfx+"MafOn").checked;const w=$("#"+pfx+"MafWrap");if(w)w.style.display=on?"flex":"none";
+  if(on){
+    this._strawMafPrice(pfx);
+    // 🧺 عبّئ عدد البرانيك تلقائياً بإجمالى برانيك الخرط/الفرزة أعلاه
+    const mafN=$("#"+pfx+"MafN");
+    if(mafN&&!Number(mafN.value)){
+      let totBn=0;$("#"+pfx+"locBody").querySelectorAll("tr").forEach(tr=>{const bn=Number((tr.querySelector(".lvBN")||{}).value)||0;totBn+=bn;});
+      if(totBn>0){mafN.value=totBn;mafN.style.background="rgba(224,169,46,.12)";mafN.title="مُعبّأ تلقائياً — يمكن تعديله";toast("🧺 عدد البرانيك عُبّئ تلقائياً بـ "+totBn+" — يمكن تعديله","ok");}
+    }
+  }
+  this._strawCalc(pfx);};
 App._strawMafPrice=function(pfx,force){const sel=$("#"+pfx+"Maf");const pInp=$("#"+pfx+"MafP");if(!sel||!pInp)return;const p=sel.selectedOptions[0]&&sel.selectedOptions[0].dataset.p;if(p!=null&&(force||!Number(pInp.value)))pInp.value=p;this._strawCalc(pfx);};
 App.mafVendorAcct=function(mafId){const m=(this.db.mafarish||[]).find(x=>x.id===mafId);const nm=m?("مفرش — "+m.name):"مفرش تجهيز";
   let a=this.db.accounts.find(x=>x.node==="mafrash"&&x.data&&x.data.mafId===mafId);
   if(!a){a=this.addAccount({node:"mafrash",name:nm,data:{mafId}},1);this.save();}return a;};
+/* 🚨 مودال يعرض كل الحقول المفقودة قبل الحفظ — بألوان بارزة وخط واضح */
+App._showSaveMissing=function(list){
+  const self=this;this.modal("⚠️ لا يمكن الحفظ — بيانات ناقصة",`
+    <div style="text-align:center;padding:18px 6px 8px;background:linear-gradient(180deg,#fff5f5,#ffffff);border-radius:12px 12px 0 0">
+      <div style="font-size:66px;margin-bottom:10px;filter:drop-shadow(0 6px 14px rgba(224,60,60,.55));animation:missShake .5s ease">📋</div>
+      <div style="font-size:22px;font-weight:900;color:#c02020;margin-bottom:6px;letter-spacing:.5px">أكمل الحقول التالية</div>
+      <div style="font-size:14px;color:#666;font-weight:600">لن يتم الحفظ حتى تُعبَّأ كل هذه العناصر</div>
+    </div>
+    <div style="background:linear-gradient(135deg,#fff,#fef7f7);border:2.5px solid #e0464633;border-radius:14px;padding:18px 22px;margin:14px 6px 6px;box-shadow:inset 0 2px 6px rgba(0,0,0,.03)">
+      <ol style="margin:0;padding-inline-start:12px;line-height:2.4;font-size:16px;font-weight:800;color:#1a1a1a;list-style:none">
+        ${list.map((x,i)=>`<li style="padding:8px 12px;margin-bottom:6px;background:#fff;border:1.5px solid #f0dcdc;border-inline-start:5px solid #e04646;border-radius:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 6px rgba(224,70,70,.08)"><span style="min-width:32px;height:32px;background:linear-gradient(135deg,#e04646,#c02020);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0;box-shadow:0 3px 8px rgba(224,70,70,.35)">${i+1}</span><span style="color:#1a1a1a;font-size:15.5px;font-weight:800">${esc(x)}</span></li>`).join("")}
+      </ol>
+    </div>
+    <div style="margin:14px 6px 4px;padding:14px 16px;background:linear-gradient(135deg,#fff8e6,#fffdf3);border:2px solid #e0a92e55;border-radius:12px;font-size:14px;line-height:1.9;color:#5a3f00;font-weight:700"><span style="font-size:20px">💡</span> راجع الشاشة، عبّئ الحقول المذكورة أعلاه، ثم اضغط <b style="color:#c02020">حفظ التوريد</b> مرة أخرى.</div>`,
+    `<button class="btn r" onclick="App.closeModal()" style="min-width:180px;font-weight:900;font-size:15px;padding:12px 20px;background:linear-gradient(135deg,#e04646,#c02020);border:none;color:#fff;box-shadow:0 6px 18px rgba(224,70,70,.4)">👌 حسناً — سأكمل الحقول</button>`);
+};
 App._readStraw=function(pfx){const g=id=>Number(($("#"+pfx+id)||{}).value)||0;
   const local=[];$("#"+pfx+"locBody").querySelectorAll("tr").forEach(tr=>{const q=Number(tr.querySelector(".lvQ").value)||0,p=Number(tr.querySelector(".lvP").value)||0;
     const bn=Number((tr.querySelector(".lvBN")||{}).value)||0;const bw=Number((tr.querySelector(".lvBW")||{}).value)||0;
@@ -2586,13 +2871,31 @@ App._reopenAnotherPartner=function(prevDate,prevDoc){this.closeModal();
   const self=this;setTimeout(()=>{self.strawInvoice('partner',null,null,self._stCtx||'partners');
     // ثبّت التاريخ والمستند
     setTimeout(()=>{const dEl=$("#stDate");if(dEl&&prevDate)dEl.value=prevDate;const dcEl=$("#stDoc");if(dcEl&&prevDoc)dcEl.value=prevDoc;},80);},80);};
-App._stSave=function(){const isExt=this._stMode==="ext";const straw=this._readStraw("st");const t=this.strawTotals(straw);
-  if(!t.total){toast("أدخل تفاصيل الفاتورة","err");return}
-  const whoId=this._stFixed?this.partnerAcct(this._stFixed).id:$("#stWho").value;
+App._stSave=function(){try{
+  const isExt=this._stMode==="ext";const straw=this._readStraw("st");const t=this.strawTotals(straw);
+  // 🔍 تحقّق شامل بقائمة كل المفقود
+  const missing=[];
+  const whoId=this._stFixed?(this.partnerAcct(this._stFixed)||{}).id:($("#stWho")||{}).value;
+  if(!whoId)missing.push(isExt?"اختيار المورد الخارجى":"اختيار الشريك");
   const date=(this._draftMode&&this._journalDate)?this._journalDate:$("#stDate").value,doc=$("#stDoc").value.trim();
+  if(!date)missing.push("التاريخ");
+  if(!t.total)missing.push("كمية × سعر التوريد (كرتون عربى/تصدير أو صنف محلى)");
+  if(straw.sale&&straw.sale.on){
+    if(!straw.sale.customerId)missing.push("اختيار العميل فى قسم «بيع لعميل آخر»");
+    if(!straw.sale.rows||!straw.sale.rows.length)missing.push("سطر واحد على الأقل ببيان البيع (كمية + سعر بيع)");
+  }
+  if(straw.mafrash&&straw.mafrash.on){
+    if(!straw.mafrash.mafId)missing.push("اختيار المفرش (فى قسم تجهيز المفرش)");
+    if(!Number(straw.mafrash.count))missing.push("عدد البرانيك (فى قسم تجهيز المفرش)");
+    if(!Number(straw.mafrash.price))missing.push("سعر البرنيكة (فى قسم تجهيز المفرش)");
+  }
+  if(missing.length){this._showSaveMissing(missing);return;}
+  // 🛡️ تأكّد من وجود حساب المفرش (وجهة التوريد الافتراضية)
+  let mafAcct=this.mafrashAcct();
+  if(!mafAcct){mafAcct=this.addAccount({node:"mafrash",name:"المفرش الرئيسى"},1);this.save();}
   if(this._stEdit){this._killSupply(this._stEdit.id);}
   const entry={id:this._stEdit?this._stEdit.id:uid(),season:this.db.season,kind:"supply",date,doc,straw,ctx:this._stCtx||"partners",journalEdited:null};
-  let dest="mafrash",destId=null,destAcct=this.mafrashAcct().id;
+  let dest="mafrash",destId=null,destAcct=mafAcct.id;
   if(isExt){entry.extId=whoId;dest=$("#stDest").value;
     if(dest==="owner")destAcct=this.ownerAcct().id;else if(dest==="factory"){destAcct=$("#stDestF").value;destId=destAcct;
       entry.destSaleArab=Number(($("#stDestSaleArab")||{}).value)||0;entry.destSaleExp=Number(($("#stDestSaleExp")||{}).value)||0;}
@@ -2655,7 +2958,7 @@ App._stSave=function(){const isExt=this._stMode==="ext";const straw=this._readSt
       toast(this._draftMode?"أُضيف إلى اليومية":wasEdit?"تم حفظ التعديل":"تم تسجيل التوريد");
     }};
   if(f){entry.attId=uid();Att.put(entry.attId,f).then(done)}else{if(this._stEdit)entry.attId=this._stEdit.attId||null;done()}
-};
+}catch(err){console.error("_stSave failed:",err);toast("❌ فشل الحفظ: "+((err&&err.message)||err),"err");}};
 
 /* ============================================================ PARTNERS — موقف الشريك ============================================================ */
 App.partnerStat=function(pAcct){const pid=pAcct.data.partnerId;
@@ -4001,6 +4304,102 @@ App.mafrashExport=function(){const S=this.mafrashSummary();const B=this.mafrashB
     {name:"التكاليف",rows:s4,widths:[13,20,20,14]},
     {name:"المبيعات",rows:s5,widths:[13,22,10,12,14]}]);
 };
+/* ═════════ 📇 كشف حساب المفرش — بالتفاصيل والمجمّع بالأيام مع تصفية بالتاريخ + طباعة + Excel ═════════ */
+App._msFilter={from:"",to:"",mafId:"",mode:"day-summary"};// mode: day-summary | day-detail | period
+App.mafrashStatement=function(mafId){const self=this;
+  if(mafId)this._msFilter.mafId=mafId;
+  const mafs=this.db.mafarish||[];
+  const F=this._msFilter;
+  // اجمع كل توريدات الموسم اللى فيها مفرش
+  const supplies=(this.db.daily||[]).filter(e=>e.season===this.db.season&&e.kind==="supply"&&e.straw&&e.straw.mafrash&&e.straw.mafrash.on&&e.straw.mafrash.mafId);
+  const filtered=supplies.filter(e=>{if(F.mafId&&e.straw.mafrash.mafId!==F.mafId)return false;if(F.from&&e.date<F.from)return false;if(F.to&&e.date>F.to)return false;return true;});
+  // اجمع بالأيام
+  const byDay={};// date → { mafId → { partners:{partnerId:{brn,val}}, totBrn, totVal } }
+  filtered.forEach(e=>{const d=e.date;const mid=e.straw.mafrash.mafId;const brn=Number(e.straw.mafrash.count)||0;const price=Number(e.straw.mafrash.price)||0;const val=brn*price;
+    byDay[d]=byDay[d]||{};byDay[d][mid]=byDay[d][mid]||{partners:{},totBrn:0,totVal:0,entries:[]};
+    const cell=byDay[d][mid];const pid=e.partnerId||("EXT:"+(e.extId||"?"));
+    cell.partners[pid]=cell.partners[pid]||{brn:0,val:0,entries:[]};
+    cell.partners[pid].brn+=brn;cell.partners[pid].val+=val;cell.partners[pid].entries.push(e);
+    cell.totBrn+=brn;cell.totVal+=val;cell.entries.push(e);});
+  const dates=Object.keys(byDay).sort();
+  // ← فلاتر UI
+  const mafOpts=`<option value="">— كل المفارش —</option>`+mafs.map(m=>`<option value="${m.id}" ${F.mafId===m.id?'selected':''}>${esc(m.name)} — ${money(m.pricePer)}/برنيكة</option>`).join("");
+  const modeBtn=(v,l,ic)=>`<button class="btn ${F.mode===v?'gold':'gh'} sm" onclick="App._msSetMode('${v}')" style="font-weight:800">${ic} ${l}</button>`;
+  const partnerName=pid=>{if(pid&&pid.indexOf&&pid.indexOf("EXT:")===0){const eid=pid.slice(4);const a=this.acct(eid);return a?"🍓 "+a.name:"مورد خارجى";}const pa=this.partnerAcct(pid);return pa?"🤝 "+pa.name:"—";};
+  const mafName=mid=>{const m=mafs.find(x=>x.id===mid);return m?m.name:"—";};
+  // ═ بناء الجدول ═
+  let body="";let grand={brn:0,val:0};
+  if(!dates.length){body=`<div class="empty" style="padding:40px;text-align:center"><div style="font-size:48px;margin-bottom:8px">📭</div>لا حركات مفرش فى الفترة المحددة</div>`;}
+  else if(F.mode==="day-summary"){
+    // مجمّع يوم — يوم مع إجمالى برانيك وقيمة تجهيز فقط
+    body=`<table class="t"><thead><tr><th>التاريخ</th><th class="r">المفرش</th><th>عدد الشركاء</th><th>إجمالى البرانيك</th><th>قيمة التجهيز</th><th></th></tr></thead><tbody>`;
+    dates.forEach(d=>{Object.keys(byDay[d]).forEach(mid=>{const cell=byDay[d][mid];grand.brn+=cell.totBrn;grand.val+=cell.totVal;const partnerCount=Object.keys(cell.partners).length;
+      body+=`<tr class="linkrow" onclick="App._msDayDetail('${d}','${mid}')"><td>${esc(fmtDate(d))}</td><td class="r"><b>${esc(mafName(mid))}</b></td><td class="num"><span class="pill b">${partnerCount}</span></td><td class="num"><b>${numf(cell.totBrn)}</b> برنيكة</td><td class="num"><b style="color:var(--gold)">${money(cell.totVal)}</b></td><td><button class="ib" onclick="event.stopPropagation();App._msDayDetail('${d}','${mid}')" title="تفصيل">🔍</button></td></tr>`;});});
+    body+=`<tr class="tot"><td colspan="3" class="r">الإجمالى</td><td class="num"><b>${numf(grand.brn)}</b></td><td class="num"><b>${money(grand.val)}</b></td><td></td></tr></tbody></table>`;
+  }else if(F.mode==="day-detail"){
+    // تفصيلى يوم — لكل يوم أسطر بالشركاء
+    body=`<table class="t"><thead><tr><th>التاريخ</th><th class="r">المفرش</th><th class="r">المصدر (شريك/مورد)</th><th>عدد البرانيك</th><th>سعر البرنيكة</th><th>قيمة التجهيز</th><th>الأذون</th></tr></thead><tbody>`;
+    dates.forEach(d=>{Object.keys(byDay[d]).forEach(mid=>{const cell=byDay[d][mid];const pids=Object.keys(cell.partners);
+      pids.forEach((pid,i)=>{const rec=cell.partners[pid];const price=rec.brn?rec.val/rec.brn:0;grand.brn+=rec.brn;grand.val+=rec.val;
+        body+=`<tr><td>${i===0?esc(fmtDate(d)):''}</td><td class="r">${i===0?'<b>'+esc(mafName(mid))+'</b>':''}</td><td class="r">${esc(partnerName(pid))}</td><td class="num"><b>${numf(rec.brn)}</b></td><td class="num">${money(price)}</td><td class="num"><b style="color:var(--gold)">${money(rec.val)}</b></td><td class="num">${rec.entries.map(e=>`<span class="pill n" style="cursor:pointer" onclick="App.editStrawInvoice('${e.id}');App.closeModal()" title="فتح الإذن">${esc(e.doc||'—')}</span>`).join(' ')}</td></tr>`;});
+      // subtotal
+      body+=`<tr class="tot" style="background:rgba(224,169,46,.08)"><td colspan="3" class="r">إجمالى ${esc(mafName(mid))} يوم ${esc(fmtDate(d))}</td><td class="num"><b>${numf(cell.totBrn)}</b></td><td></td><td class="num"><b>${money(cell.totVal)}</b></td><td></td></tr>`;
+    });});
+    body+=`<tr class="tot"><td colspan="3" class="r">الإجمالى الكلى</td><td class="num"><b>${numf(grand.brn)}</b></td><td></td><td class="num"><b>${money(grand.val)}</b></td><td></td></tr></tbody></table>`;
+  }else{
+    // period — إجمالى الفترة كلها لكل مفرش/شريك (بدون توزيع بالأيام)
+    const perMaf={};// mafId → { partners:{}, totBrn, totVal }
+    dates.forEach(d=>{Object.keys(byDay[d]).forEach(mid=>{const cell=byDay[d][mid];perMaf[mid]=perMaf[mid]||{partners:{},totBrn:0,totVal:0,days:0};perMaf[mid].days++;Object.keys(cell.partners).forEach(pid=>{perMaf[mid].partners[pid]=perMaf[mid].partners[pid]||{brn:0,val:0};perMaf[mid].partners[pid].brn+=cell.partners[pid].brn;perMaf[mid].partners[pid].val+=cell.partners[pid].val;});perMaf[mid].totBrn+=cell.totBrn;perMaf[mid].totVal+=cell.totVal;});});
+    body=`<table class="t"><thead><tr><th class="r">المفرش</th><th>عدد الأيام</th><th class="r">المصدر</th><th>إجمالى البرانيك</th><th>إجمالى قيمة التجهيز</th></tr></thead><tbody>`;
+    Object.keys(perMaf).forEach(mid=>{const M=perMaf[mid];const pids=Object.keys(M.partners);grand.brn+=M.totBrn;grand.val+=M.totVal;
+      pids.forEach((pid,i)=>{const rec=M.partners[pid];
+        body+=`<tr><td class="r">${i===0?'<b>'+esc(mafName(mid))+'</b>':''}</td><td class="num">${i===0?M.days:''}</td><td class="r">${esc(partnerName(pid))}</td><td class="num"><b>${numf(rec.brn)}</b></td><td class="num"><b style="color:var(--gold)">${money(rec.val)}</b></td></tr>`;});
+      body+=`<tr class="tot" style="background:rgba(224,169,46,.08)"><td colspan="3" class="r">إجمالى ${esc(mafName(mid))}</td><td class="num"><b>${numf(M.totBrn)}</b></td><td class="num"><b>${money(M.totVal)}</b></td></tr>`;
+    });
+    body+=`<tr class="tot"><td colspan="3" class="r">الإجمالى الكلى (${dates.length} يوم)</td><td class="num"><b>${numf(grand.brn)}</b></td><td class="num"><b>${money(grand.val)}</b></td></tr></tbody></table>`;
+  }
+  // ═ Modal ═
+  this.modal("📇 كشف حساب المفرش",`
+    <div class="fg" style="grid-template-columns:1.4fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:12px">
+      <div class="field"><label>🏭 المفرش</label><select id="msMaf" onchange="App._msFilter.mafId=this.value;App.mafrashStatement();App.closeModal()">${mafOpts}</select></div>
+      <div class="field"><label>📅 من تاريخ</label><input type="date" id="msFrom" value="${esc(F.from)}" onchange="App._msFilter.from=this.value;App.mafrashStatement();App.closeModal()"></div>
+      <div class="field"><label>📅 إلى تاريخ</label><input type="date" id="msTo" value="${esc(F.to)}" onchange="App._msFilter.to=this.value;App.mafrashStatement();App.closeModal()"></div>
+      <div class="field"><button class="btn gh sm" onclick="App._msClearFilter()" style="height:40px">↺ مسح الفلاتر</button></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:rgba(47,109,240,.05);border-radius:10px">
+      ${modeBtn('day-summary','مجمّع بالأيام','📊')}
+      ${modeBtn('day-detail','تفصيلى بالأيام (كل شريك)','🔎')}
+      ${modeBtn('period','إجمالى الفترة كلها','📋')}
+    </div>
+    <div class="tw" style="max-height:60vh;overflow:auto">${body}</div>
+    <div class="hint" style="margin-top:8px;padding:10px;background:rgba(31,157,87,.06);border-radius:8px;line-height:1.7">💡 اضغط على أى يوم فى العرض المجمّع لعرض تفاصيله. اضغط على الإذن فى العرض التفصيلى لفتحه للتعديل.</div>`,
+    `<button class="btn blue sm" onclick="App._msPrint()">🖨️ طباعة</button><button class="btn green sm" onclick="App._msExport()">📊 تصدير Excel</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);
+};
+App._msSetMode=function(m){this._msFilter.mode=m;this.closeModal();this.mafrashStatement();};
+App._msClearFilter=function(){this._msFilter={from:"",to:"",mafId:"",mode:"day-summary"};this.closeModal();this.mafrashStatement();};
+App._msDayDetail=function(date,mafId){this._msFilter.mode="day-detail";this._msFilter.from=date;this._msFilter.to=date;if(mafId)this._msFilter.mafId=mafId;this.closeModal();this.mafrashStatement();};
+App._msBuildData=function(){const F=this._msFilter;const mafs=this.db.mafarish||[];
+  const supplies=(this.db.daily||[]).filter(e=>e.season===this.db.season&&e.kind==="supply"&&e.straw&&e.straw.mafrash&&e.straw.mafrash.on&&e.straw.mafrash.mafId);
+  const filtered=supplies.filter(e=>{if(F.mafId&&e.straw.mafrash.mafId!==F.mafId)return false;if(F.from&&e.date<F.from)return false;if(F.to&&e.date>F.to)return false;return true;});
+  const rows=[];filtered.forEach(e=>{const brn=Number(e.straw.mafrash.count)||0;const price=Number(e.straw.mafrash.price)||0;const val=brn*price;
+    const pid=e.partnerId||("EXT:"+(e.extId||"?"));const pname=(pid&&pid.indexOf("EXT:")===0)?((this.acct(pid.slice(4))||{}).name||"مورد خارجى"):((this.partnerAcct(e.partnerId)||{}).name||"—");
+    const m=mafs.find(x=>x.id===e.straw.mafrash.mafId);
+    rows.push({date:e.date,doc:e.doc||"",mafrash:m?m.name:"—",source:pname,brn,price,val,entry:e});});
+  rows.sort((a,b)=>(a.date||"").localeCompare(b.date||""));return rows;};
+App._msExport=function(){const rows=this._msBuildData();const F=this._msFilter;const H=v=>({v,s:"hdr"});const hdr=this.xlsxHeaderRows("كشف حساب المفرش"+(F.from?(" من "+F.from):"")+(F.to?(" إلى "+F.to):""),7);
+  const sheet=hdr.concat([["التاريخ","الإذن","المفرش","المصدر (شريك/مورد)","عدد البرانيك","سعر البرنيكة","قيمة التجهيز"].map(H)]);
+  let tBrn=0,tVal=0;rows.forEach(r=>{tBrn+=r.brn;tVal+=r.val;sheet.push([r.date,r.doc,r.mafrash,r.source,{v:r.brn,s:"num"},{v:r.price,s:"num"},{v:r.val,s:"num"}]);});
+  sheet.push([{v:"الإجمالى",s:"tottxt",merge:4},"","","",{v:tBrn,s:"tot"},"",{v:tVal,s:"tot"}]);
+  this.exportXLS("كشف_حساب_المفرش",[{name:"الحركات",rows:sheet,widths:[12,12,22,22,14,14,16]}]);
+  toast("📊 تم تصدير الملف","ok");};
+App._msPrint=function(){const rows=this._msBuildData();const F=this._msFilter;const mafs=this.db.mafarish||[];const mafLabel=F.mafId?(mafs.find(m=>m.id===F.mafId)||{}).name:"كل المفارش";
+  let tBrn=0,tVal=0;const body=`
+    <div style="margin:8px 0 12px;font-size:13px"><b>المفرش:</b> ${esc(mafLabel||'—')} &nbsp;|&nbsp; <b>الفترة:</b> ${esc(F.from||'البداية')} → ${esc(F.to||'النهاية')} &nbsp;|&nbsp; <b>عدد الحركات:</b> ${rows.length}</div>
+    <table><thead><tr><th>التاريخ</th><th>الإذن</th><th class="r">المفرش</th><th class="r">المصدر</th><th>البرانيك</th><th>السعر</th><th>القيمة</th></tr></thead><tbody>
+    ${rows.map(r=>{tBrn+=r.brn;tVal+=r.val;return `<tr><td>${esc(fmtDate(r.date))}</td><td>${esc(r.doc)}</td><td class="r">${esc(r.mafrash)}</td><td class="r">${esc(r.source)}</td><td class="num">${numf(r.brn)}</td><td class="num">${money(r.price)}</td><td class="num">${money(r.val)}</td></tr>`;}).join("")}
+    <tr class="tot"><td colspan="4" class="r">الإجمالى</td><td class="num">${numf(tBrn)}</td><td></td><td class="num">${money(tVal)}</td></tr>
+    </tbody></table>`;
+  this.printDoc("📇 كشف حساب المفرش",body,"كشف تفصيلى بالحركات");};
 App.attachSupply=function(id){const inp=document.createElement("input");inp.type="file";inp.onchange=()=>{const f=inp.files[0];if(!f)return;const aid=uid();
   Att.put(aid,f).then(()=>{const e=this.db.daily.find(x=>x.id===id);if(e)e.attId=aid;this.save();this.render();toast("تم إرفاق المستند")})};inp.click()};
 App._killSupply=function(id){const e=this.db.daily.find(x=>x.id===id);if(!e)return;const t=this.strawTotals(e.straw);
@@ -4026,7 +4425,7 @@ Pages.mafrash=function(){const S=App.mafrashSummary();const mid=App.mafrashAcct(
   const costs=App.seasonPosts().filter(p=>p.debit===mid&&p.kind==="mafrashCost");
   const sales=App.db.daily.filter(e=>e.season===App.db.season&&e.kind==="sale");
   return head("🍓","المفرش والتجهيز","مشتريات خام تحت التجهيز — يومية، التكاليف الست، التسليمات، الفرزة، والهادر",
-    `<button class="btn gh sm" onclick="App.mafrashExport()">📊 تصدير بيان المفرش</button>`)+`
+    `<button class="btn blue sm" onclick="App.mafrashStatement()">📇 كشف حساب المفرش (تفصيلى/مجمّع)</button><button class="btn gh sm" onclick="App.mafrashExport()">📊 تصدير بيان المفرش</button>`)+`
    <div class="card"><div class="card-h">📅 يومية المفرش — الترحيل بضغطة</div><div class="card-b">
      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
        <div class="field"><label>تاريخ اليومية</label><input type="date" value="${esc(jd)}" onchange="App.setJournalDate(this.value);App.render()"></div>
@@ -5866,7 +6265,8 @@ App.CLS={in:"مقبوضات نقدية",pay:"مدفوعات/سداد",expense:"�
 App.clsLabel=function(k){return this.CLS[k]||"قيد عام"};
 App.logout=function(){this.clearSession();this.auth.user=null;this.showLogin()};
 App.showLogin=function(){const d=this.db;const v=this.currentVerse();
-  const logo=d.logo?`<img src="${d.logo}" class="lglogo" style="object-fit:cover">`:`<div class="lglogo" style="display:flex;align-items:center;justify-content:center;font-size:60px;background:radial-gradient(circle at 50% 38%,#ff2f7e,#c81c53 62%,#7d0f34)">🍓</div>`;
+  const inner=d.logo?`<img src="${d.logo}" class="lglogo" style="object-fit:cover">`:`<div class="lglogo" style="display:flex;align-items:center;justify-content:center;font-size:66px;background:radial-gradient(circle at 50% 38%,#ff2f7e,#c81c53 62%,#7d0f34)">🍓</div>`;
+  const logo=`<div class="lglogo-wrap">${inner}<span class="lglogo-spark s1"></span><span class="lglogo-spark s2"></span><span class="lglogo-spark s3"></span></div>`;
   document.querySelector(".app").style.display="none";
   const ac=$("#activate");if(ac)ac.style.display="none";
   const cl=$("#cloud");if(cl)cl.style.display="none";
@@ -6278,7 +6678,8 @@ App._activationSuccess=function(){const c=$("#activate");
 App.showActivation=function(){const d=this.db;
   document.querySelector(".app").style.display="none";$("#login").style.display="none";
   const box=(i)=>`<input id="s${i}" class="acbox" data-real="" data-alnum="1" data-upper="1" data-dash="1" data-max="4" ${i<3?`data-next="s${i+1}"`:'data-enter="activate"'} ${i>0?`data-prev="s${i-1}"`:''} onkeydown="App._mask(this,event)" autocomplete="off" placeholder="●-●-●-●">`;
-  const logo=d.logo?`<img src="${d.logo}" class="lglogo" style="object-fit:cover">`:`<div class="lglogo" style="display:flex;align-items:center;justify-content:center;font-size:60px;background:radial-gradient(circle at 50% 38%,#ff2f7e,#c81c53 62%,#7d0f34)">🍓</div>`;
+  const inner=d.logo?`<img src="${d.logo}" class="lglogo" style="object-fit:cover">`:`<div class="lglogo" style="display:flex;align-items:center;justify-content:center;font-size:66px;background:radial-gradient(circle at 50% 38%,#ff2f7e,#c81c53 62%,#7d0f34)">🍓</div>`;
+  const logo=`<div class="lglogo-wrap">${inner}<span class="lglogo-spark s1"></span><span class="lglogo-spark s2"></span><span class="lglogo-spark s3"></span></div>`;
   $("#activate").style.display="flex";
   $("#activate").innerHTML=`
    <div class="lgbg"></div>
