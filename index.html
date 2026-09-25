@@ -267,6 +267,36 @@ table.t tr.tot td{border-top:2px solid var(--gold)}
 .nav-progress.done{transform:scaleX(1);transition:transform .16s ease-out;animation:none;opacity:0;transition:transform .16s ease-out,opacity .18s ease-out .1s}
 @keyframes navShift{from{background-position:0% 0}to{background-position:200% 0}}
 @keyframes missShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px) rotate(-3deg)}40%{transform:translateX(6px) rotate(3deg)}60%{transform:translateX(-4px) rotate(-2deg)}80%{transform:translateX(4px) rotate(2deg)}}
+/* ═══ 🍏 تنبيه على طراز رسالة الآيفون — أنيق ومضغوط (فاتح/داكن) ═══ */
+.ios-alert-bg{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.42);backdrop-filter:blur(6px) saturate(1.1);-webkit-backdrop-filter:blur(6px) saturate(1.1);opacity:0;transition:opacity .22s ease}
+.ios-alert-bg.on{opacity:1}
+.ios-alert-bg.out{opacity:0}
+.ios-alert{width:100%;max-width:290px;background:rgba(250,250,252,.86);backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);border-radius:26px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.45),0 0 0 .5px rgba(255,255,255,.35) inset;font-family:-apple-system,"SF Pro Text","SF Pro Display","Segoe UI",system-ui,"Cairo",sans-serif;transform:scale(.82);opacity:0;transition:transform .34s cubic-bezier(.18,1.25,.4,1),opacity .22s ease;direction:rtl}
+.ios-alert-bg.on .ios-alert{transform:scale(1);opacity:1}
+.ios-alert-bg.out .ios-alert{transform:scale(.92);opacity:0;transition:transform .18s ease,opacity .18s ease}
+[data-theme="dark"] .ios-alert{background:rgba(38,42,50,.82);box-shadow:0 24px 70px rgba(0,0,0,.7),0 0 0 .5px rgba(255,255,255,.1) inset}
+.ios-alert-top{padding:22px 20px 18px;text-align:center}
+.ios-alert-icon{width:60px;height:60px;margin:0 auto 13px;border-radius:16px;background:linear-gradient(135deg,var(--acc,#2f6df0),color-mix(in srgb,var(--acc,#2f6df0) 70%,#000));display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 8px 20px color-mix(in srgb,var(--acc,#2f6df0) 45%,transparent);animation:iosIconPop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes iosIconPop{0%{transform:scale(.3);opacity:0}65%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+.ios-alert-title{font-size:19px;font-weight:800;color:#1a1a1c;letter-spacing:-.2px;margin-bottom:5px;line-height:1.3}
+[data-theme="dark"] .ios-alert-title{color:#fff}
+.ios-alert-msg{font-size:13.5px;font-weight:500;color:#3a3a3e;line-height:1.55;padding:0 2px}
+[data-theme="dark"] .ios-alert-msg{color:#c9cdd4}
+.ios-alert-list{margin-top:13px;display:flex;flex-direction:column;gap:7px;text-align:start}
+.ios-alert-li{display:flex;align-items:flex-start;gap:9px;padding:10px 13px;background:rgba(120,120,128,.1);border-radius:12px;font-size:13.5px;font-weight:700;color:#1a1a1c;line-height:1.4;animation:iosLiIn .4s ease backwards}
+[data-theme="dark"] .ios-alert-li{background:rgba(255,255,255,.08);color:#e8eaed}
+.ios-alert-li:nth-child(1){animation-delay:.08s}.ios-alert-li:nth-child(2){animation-delay:.14s}.ios-alert-li:nth-child(3){animation-delay:.2s}.ios-alert-li:nth-child(4){animation-delay:.26s}.ios-alert-li:nth-child(5){animation-delay:.32s}.ios-alert-li:nth-child(6){animation-delay:.38s}
+@keyframes iosLiIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.ios-alert-dot{width:7px;height:7px;border-radius:50%;background:var(--acc,#2f6df0);margin-top:6px;flex-shrink:0;box-shadow:0 0 6px color-mix(in srgb,var(--acc,#2f6df0) 60%,transparent)}
+.ios-alert-actions{display:flex;gap:8px;padding:0 12px 14px}
+.ios-alert-actions.stack{flex-direction:column}
+.ios-alert-btn{flex:1;padding:12px 14px;border:none;border-radius:14px;background:rgba(120,120,128,.14);color:var(--acc,#2f6df0);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .12s,background .12s;-webkit-tap-highlight-color:transparent}
+[data-theme="dark"] .ios-alert-btn{background:rgba(255,255,255,.1)}
+.ios-alert-btn:active{transform:scale(.95);background:rgba(120,120,128,.24)}
+.ios-alert-btn.primary{background:var(--acc,#2f6df0);color:#fff;box-shadow:0 6px 16px color-mix(in srgb,var(--acc,#2f6df0) 40%,transparent)}
+.ios-alert-btn.primary:active{background:color-mix(in srgb,var(--acc,#2f6df0) 85%,#000)}
+.ios-alert-btn.danger{background:var(--red);color:#fff}
+@media (max-width:400px){.ios-alert{max-width:100%}}
 /* ضغطة استجابة فورية على كل زر تنقّل */
 .side a:active,.tb:active,.pill:active,.btn:active,.linkrow:active,.jlink:active{transform:scale(.985)!important;transition:transform .06s!important}
 /* أزل تأخيرات hover الأساسية للاستجابة الفورية */
@@ -1025,7 +1055,30 @@ const App={
  db:null, route:"dashboard", arg:null,
  load(){try{const r=localStorage.getItem(KEY);if(r)this.db=JSON.parse(r);}catch(e){}
    if(!this.db){this.db=seed();this.seedCore();this.save();}
-   if(!this.db.seq)this.db.seq={};if(!this.db.drafts)this.db.drafts=[];if(!this.db.recons)this.db.recons=[];if(!this.db.bankStmt)this.db.bankStmt={};if(!this.db.svcCropIds)this.db.svcCropIds=[];if(!this.db.svcDestIds)this.db.svcDestIds=[];if(!this.db.svcExclPartners)this.db.svcExclPartners=[];if(!this.db.svcDistPart)this.db.svcDistPart="partner";if(!this.db.carDestIds)this.db.carDestIds=[];if(!this.db.carDistPart)this.db.carDistPart="partner";if(!this.db.obIncome)this.db.obIncome=[];if(!this.db.itemCats)this.db.itemCats=[];if(!this.db.activationPayments)this.db.activationPayments=[];if(!this.db.attendance)this.db.attendance={};if(!this.db.payExtras)this.db.payExtras={};},
+   this._normalizeDb();},
+ /* 🛡️ يضمن وجود كل الحقول التى يعتمد عليها الكود — يمنع أخطاء .filter على undefined
+    (مهم بعد المزامنة السحابية أو فتح قاعدة بيانات قديمة) */
+ _normalizeDb(){const d=this.db;if(!d)return;
+   // مصفوفات أساسية
+   ["accounts","postings","daily","invoices","locations","cars","mafarish","varieties","expenseTypes",
+    "supplierCats","customerCats","seasons","drafts","recons","svcCropIds","svcDestIds","svcExclPartners",
+    "carDestIds","obIncome","itemCats","activationPayments","users","stores","storeItems","storeTrans",
+    "cheques","payrollRuns","employees","expenses"].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+   // كائنات أساسية
+   ["seq","bankStmt","naolon","attendance","payExtras"].forEach(k=>{if(!d[k]||typeof d[k]!=="object"||Array.isArray(d[k]))d[k]={};});
+   // قيم نصية
+   if(!d.svcDistPart)d.svcDistPart="partner";if(!d.carDistPart)d.carDistPart="partner";
+   if(!d.company)d.company="المتحدة";if(!d.accountant)d.accountant="محمود سامي";
+   if(!d.season){d.season=(d.seasons&&d.seasons[0])||"2025-2026";}
+   if(!d.seasons.length)d.seasons=[d.season];
+   if(d.seasons.indexOf(d.season)<0)d.seasons.push(d.season);
+   if(!d.customerCats.length)d.customerCats=["كرتون عربي","محلي","فرزة","تصدير","مصانع","شركات","خردة"];
+   if(!d.supplierCats.length)d.supplierCats=["أسمدة ومبيدات","شبكة وخراطيم","خدمة","ميكنة","متنوعين"];
+   // 🏦 تأكّد من وجود الحسابات الأساسية (تنكسر بعض الصفحات بدونها)
+   const has=node=>d.accounts.some(a=>a.node===node);
+   const core=[["treasury","الخزينة الرئيسية"],["owner","حساب الملك — المتحدة"],["capital","رأس المال الافتتاحي"],["mafrash","المفرش — مشتريات خام تحت التجهيز"]];
+   core.forEach(([node,name])=>{if(!has(node)){try{this.addAccount({node,name},1);}catch(e){}}});
+ },
  save(skipCloud){try{localStorage.setItem(KEY,JSON.stringify(this.db))}catch(e){toast("تعذّر الحفظ (المساحة ممتلئة)","err")}
    if(!skipCloud&&this._cloudRef)this._pushLocalDb();},
  seedCore(){ this.addAccount({node:"treasury",name:"الخزينة الرئيسية"},1);
@@ -2423,21 +2476,52 @@ App._strawMafPrice=function(pfx,force){const sel=$("#"+pfx+"Maf");const pInp=$("
 App.mafVendorAcct=function(mafId){const m=(this.db.mafarish||[]).find(x=>x.id===mafId);const nm=m?("مفرش — "+m.name):"مفرش تجهيز";
   let a=this.db.accounts.find(x=>x.node==="mafrash"&&x.data&&x.data.mafId===mafId);
   if(!a){a=this.addAccount({node:"mafrash",name:nm,data:{mafId}},1);this.save();}return a;};
-/* 🚨 مودال يعرض كل الحقول المفقودة قبل الحفظ — بألوان بارزة وخط واضح */
-App._showSaveMissing=function(list){
-  const self=this;this.modal("⚠️ لا يمكن الحفظ — بيانات ناقصة",`
-    <div style="text-align:center;padding:18px 6px 8px;background:linear-gradient(180deg,#fff5f5,#ffffff);border-radius:12px 12px 0 0">
-      <div style="font-size:66px;margin-bottom:10px;filter:drop-shadow(0 6px 14px rgba(224,60,60,.55));animation:missShake .5s ease">📋</div>
-      <div style="font-size:22px;font-weight:900;color:#c02020;margin-bottom:6px;letter-spacing:.5px">أكمل الحقول التالية</div>
-      <div style="font-size:14px;color:#666;font-weight:600">لن يتم الحفظ حتى تُعبَّأ كل هذه العناصر</div>
-    </div>
-    <div style="background:linear-gradient(135deg,#fff,#fef7f7);border:2.5px solid #e0464633;border-radius:14px;padding:18px 22px;margin:14px 6px 6px;box-shadow:inset 0 2px 6px rgba(0,0,0,.03)">
-      <ol style="margin:0;padding-inline-start:12px;line-height:2.4;font-size:16px;font-weight:800;color:#1a1a1a;list-style:none">
-        ${list.map((x,i)=>`<li style="padding:8px 12px;margin-bottom:6px;background:#fff;border:1.5px solid #f0dcdc;border-inline-start:5px solid #e04646;border-radius:10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 6px rgba(224,70,70,.08)"><span style="min-width:32px;height:32px;background:linear-gradient(135deg,#e04646,#c02020);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;flex-shrink:0;box-shadow:0 3px 8px rgba(224,70,70,.35)">${i+1}</span><span style="color:#1a1a1a;font-size:15.5px;font-weight:800">${esc(x)}</span></li>`).join("")}
-      </ol>
-    </div>
-    <div style="margin:14px 6px 4px;padding:14px 16px;background:linear-gradient(135deg,#fff8e6,#fffdf3);border:2px solid #e0a92e55;border-radius:12px;font-size:14px;line-height:1.9;color:#5a3f00;font-weight:700"><span style="font-size:20px">💡</span> راجع الشاشة، عبّئ الحقول المذكورة أعلاه، ثم اضغط <b style="color:#c02020">حفظ التوريد</b> مرة أخرى.</div>`,
-    `<button class="btn r" onclick="App.closeModal()" style="min-width:180px;font-weight:900;font-size:15px;padding:12px 20px;background:linear-gradient(135deg,#e04646,#c02020);border:none;color:#fff;box-shadow:0 6px 18px rgba(224,70,70,.4)">👌 حسناً — سأكمل الحقول</button>`);
+/* 🚨 تنبيه الحقول الناقصة قبل الحفظ — بتصميم iOS */
+App._showSaveMissing=function(list,opts){
+  return this.validationAlert(list,opts);
+};
+/* 🍏 تنبيه تحقّق بشكل رسالة الآيفون — أنيق ومضغوط، يُستخدم فى كل الصفحات */
+App.validationAlert=function(list,opts){
+  opts=opts||{};list=Array.isArray(list)?list:[list];
+  const heading=opts.heading||"بيانات ناقصة";
+  const sub=opts.sub||"أكمل الحقول التالية حتى تُسجَّل الحركة بشكل صحيح — لأنها تؤثر فى الحسابات:";
+  const btn=opts.btn||"حسناً، سأكمل";
+  this.iosAlert({
+    icon:opts.icon||"⚠️",
+    accent:opts.accent||"red",
+    title:heading,
+    message:sub,
+    list:list,
+    buttons:[{label:btn,primary:true}]
+  });
+};
+/* 🍏 مكوّن تنبيه على طراز الآيفون — عام لكل النظام */
+App.iosAlert=function(o){o=o||{};
+  const old=document.getElementById("iosAlertBg");if(old)old.remove();
+  const accent=o.accent||"blue";const accentVar=accent==="red"?"var(--red)":accent==="gold"?"var(--gold)":accent==="green"?"var(--green)":"var(--blue)";
+  const listHtml=(o.list&&o.list.length)?`<div class="ios-alert-list">${o.list.map(x=>`<div class="ios-alert-li"><span class="ios-alert-dot"></span><span>${esc(x)}</span></div>`).join("")}</div>`:"";
+  const btns=(o.buttons&&o.buttons.length?o.buttons:[{label:"حسناً",primary:true}]);
+  const btnHtml=btns.map((b,i)=>`<button class="ios-alert-btn ${b.primary?'primary':''} ${b.danger?'danger':''}" data-i="${i}">${esc(b.label)}</button>`).join("");
+  const bg=document.createElement("div");bg.id="iosAlertBg";bg.className="ios-alert-bg";
+  bg.style.setProperty("--acc",accentVar);
+  bg.innerHTML=`<div class="ios-alert" role="alertdialog">
+      <div class="ios-alert-top">
+        <div class="ios-alert-icon">${o.icon||"ℹ️"}</div>
+        ${o.title?`<div class="ios-alert-title">${esc(o.title)}</div>`:""}
+        ${o.message?`<div class="ios-alert-msg">${esc(o.message)}</div>`:""}
+        ${listHtml}
+      </div>
+      <div class="ios-alert-actions ${btns.length>2?'stack':''}">${btnHtml}</div>
+    </div>`;
+  document.body.appendChild(bg);
+  const close=()=>{bg.classList.add("out");setTimeout(()=>bg.remove(),200);};
+  bg.querySelectorAll(".ios-alert-btn").forEach(el=>el.onclick=()=>{const i=Number(el.getAttribute("data-i"));const b=btns[i];close();if(b&&b.onClick)try{b.onClick()}catch(e){}});
+  // اضغط الخلفية أو Esc للإغلاق (إن لم يُمنع)
+  if(!o.noBackdropClose)bg.onclick=(e)=>{if(e.target===bg)close();};
+  bg._close=close;
+  requestAnimationFrame(()=>bg.classList.add("on"));
+  try{this.playSound&&this.playSound(accent==="red"?"error":"switch")}catch(e){}
+  return bg;
 };
 App._readStraw=function(pfx){const g=id=>Number(($("#"+pfx+id)||{}).value)||0;
   const local=[];$("#"+pfx+"locBody").querySelectorAll("tr").forEach(tr=>{const q=Number(tr.querySelector(".lvQ").value)||0,p=Number(tr.querySelector(".lvP").value)||0;
@@ -6525,7 +6609,7 @@ App._cloudStartSync=function(uid){const self=this;if(!this.initFirebase()||!uid)
     firebase.database().ref(".info/connected").on("value",s=>{const online=!!s.val();self._cloudOnline=online;self._updateCloudChip();});
   }).catch(e=>{console.warn("Cloud sync init failed:",e);});
 };
-App._applyRemoteDb=function(r){try{const currentUser=this.auth?this.auth.user:null;this.db=r;this.save(true);/* skip cloud push */}catch(e){console.warn(e);}};
+App._applyRemoteDb=function(r){try{const currentUser=this.auth?this.auth.user:null;this.db=r;this._normalizeDb&&this._normalizeDb();this.save(true);/* skip cloud push */}catch(e){console.warn(e);}};
 App._pushLocalDb=function(){if(!this._cloudRef||!this.db)return;
   this.db._ver=(Number(this.db._ver)||0)+1;this.db._lastPushBy=this._cloudUid||"";this.db._lastPushAt=Date.now();
   this._cloudRef.set(this.db).then(()=>{}).catch(e=>{/* offline — will retry on next save */});};
