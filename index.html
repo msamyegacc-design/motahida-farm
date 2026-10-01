@@ -14648,6 +14648,884 @@ App._injectTopbarLangBtns=function(){if(!this.auth||!this.auth.user)return;
     setTimeout(()=>App.setLang(newLang),120);};
   target.insertBefore(wrap,cloudChip);};
 
+/* ══════════════════════════════════════════════════════════════════════════
+   🌐 توسعة ضخمة للترجمة الإنجليزية — تغطّى كل بنود الإعدادات والصفحات
+   ══════════════════════════════════════════════════════════════════════════ */
+App.EN_MAP=Object.assign({}, App.EN_MAP||{}, {
+  // Settings section titles
+  "بيانات الشركة والشعار":"Company Info & Logo","المواقع والشركاء":"Locations & Partners",
+  "المواقع والشركاء بالفدان":"Locations & Partners (by Feddan)","أصناف الفراولة":"Strawberry Varieties",
+  "أنواع المصروفات":"Expense Types","السيارات والناولون":"Vehicles & Freight",
+  "المفارش وسعر البرنيكة":"Sorting Tables & Crate Price","أصناف المخزن":"Inventory Items",
+  "أصناف المخزن الأخرى (غير الفراولة)":"Other Inventory Items (Non-Strawberry)",
+  "تصنيفات الموردين والعملاء":"Supplier & Customer Categories",
+  "تصنيفات الموردين والعملاء وبنود السيارات":"Suppliers / Customers / Vehicle Categories",
+  "المواسم وترحيل الأرصدة":"Seasons & Carry-forward","المستخدمون والصلاحيات":"Users & Permissions",
+  "باسورد التعديل والحذف":"Edit/Delete Password","العملات وأسعار الصرف":"Currencies & Exchange Rates",
+  "المؤثرات الصوتية":"Sound Effects","النسخ الاحتياطى":"Backup","النسخ الاحتياطي":"Backup",
+  "الأمان والاتصال عن بُعد":"Security & Remote Access",
+  "اتصال المطوّر بالمحاسب":"Developer Remote Assist","اتصال المطوّر بالمحاسب (Remote Assist)":"Developer Remote Assist",
+  "سجل التدقيق والأجهزة النشطة":"Audit Log & Active Devices","مركز الإشعارات":"Notification Center",
+  "إظهار جرس الإشعارات":"Show Notification Bell","إدارة النوافذ المفتوحة":"Window Manager",
+  // Buttons / Actions
+  "حفظ":"Save","إلغاء":"Cancel","إغلاق":"Close","تعديل":"Edit","حذف":"Delete","إضافة":"Add",
+  "جديد":"New","إنشاء":"Create","بحث":"Search","تصفية":"Filter","مسح":"Clear","مسح الكل":"Clear All",
+  "تحديد الكل":"Select All","طباعة":"Print","تصدير":"Export","استيراد":"Import",
+  "تصدير Excel":"Export Excel","طباعة/PDF":"Print / PDF","اعتماد":"Approve","إلغاء الاعتماد":"Unapprove",
+  "ترحيل":"Carry-forward","استعادة":"Restore","استعادة نسخة":"Restore Backup",
+  "نسخة احتياطية":"Backup Now","💾 نسخة احتياطية":"💾 Backup Now","↺ استعادة نسخة":"↺ Restore Backup",
+  "موافق":"OK","نعم":"Yes","لا":"No","متابعة":"Continue","رجوع":"Back","السابق":"Previous","التالي":"Next",
+  "إرسال":"Send","استقبال":"Receive","قبول":"Accept","رفض":"Reject",
+  "+ مستخدم":"+ User","+ موقع":"+ Location","+ شريك":"+ Partner","+ صنف":"+ Item",
+  // Common labels
+  "الاسم":"Name","اسم المستخدم":"Username","كلمة المرور":"Password","كلمة سر جديدة":"New Password",
+  "اسم الدخول":"Login Name","الدور":"Role","المستخدم":"User","المدير":"Administrator","مدير":"Admin",
+  "الصلاحيات":"Permissions","المهنة":"Role","الهاتف":"Phone","التفعيل":"Activation",
+  "الصلاحية":"Permission","البند":"Item","اختصار":"Shortcut","الحالة":"Status",
+  "التاريخ":"Date","التاريخ والوقت":"Date & Time","من تاريخ":"From Date","إلى تاريخ":"To Date",
+  "القيمة":"Value","الكمية":"Quantity","الوحدة":"Unit","السعر":"Price","المبلغ":"Amount",
+  "البيان":"Description","الموقع":"Location","المورد":"Supplier","العميل":"Customer","الشريك":"Partner",
+  "الشركاء":"Partners","المساحة":"Area","المحصول":"Crop","مدى الحياة":"Lifetime","شهرى":"Monthly",
+  "فتح حسابات":"Open Accounts","كل الصلاحيات":"All Permissions","محفوظ":"Saved",
+  // Common sections/categories
+  "الملك":"Owner","ملك":"Own","شراكة":"Partnership","شراكة 50/50":"50/50 Partnership",
+  "شريك محدد":"Specific Partner","خارجى":"External","خارجي":"External",
+  "نقدى":"Cash","نقدي":"Cash","آجل":"Credit","على الحساب":"On Account",
+  "خزينة":"Treasury","بنك":"Bank","عهدة":"Custody","سلفة":"Advance",
+  // Status / notifications
+  "نشط":"Active","غير نشط":"Inactive","مفتوحة":"Open","مغلقة":"Closed","معلَّقة":"Pending",
+  "مسدَّد":"Paid","لم يُسدَّد":"Unpaid","جزئى":"Partial","متأخر":"Overdue","وصلت":"Delivered",
+  "فى الطريق":"In Transit","غادرت":"Departed","مسوَّدة":"Draft","مفوترة":"Invoiced",
+  "ملغاة":"Cancelled","تم الحذف":"Deleted","تم الحفظ":"Saved","تم التعديل":"Updated",
+  // Settings-page specific texts
+  "المدير فقط يضيف/يعدل/يحذف المستخدمين":"Admin only can add/edit/delete users",
+  "(المدير فقط يضيف/يعدل/يحذف المستخدمين)":"(Admin only can add/edit/delete users)",
+  "(المدير فقط)":"(Admin only)","للمدير فقط":"Admin only",
+  "اضغط «نسخة احتياطية» قبل أى ترحيل لحفظ نسخة كاملة على جهازك — ولو أخطأت اضغط «استعادة نسخة» لاختيار ملف النسخة والرجوع لها فوراً":
+    "Press «Backup» before any migration to save a complete snapshot — if something goes wrong press «Restore» to pick a backup file and roll back instantly",
+  "النسخ الاحتياطية":"Backups","نسخ احتياطية":"Backups",
+  // Hints common
+  "اختياري":"Optional","(اختياري)":"(Optional)","مطلوب":"Required",
+  "(اختر مستخدماً للتعديل أو اضغط + مستخدم للإضافة)":"(Pick a user to edit or press + User to add)",
+  "علّم البنود المسموح بها":"Mark the allowed items",
+  "صلاحيات المستخدم":"User Permissions","صلاحيات المستخدم — علّم البنود المسموح بها":"User Permissions — Check allowed items",
+  "الصلاحيات الدقيقة":"Granular Permissions",
+  "لكل بند: إضافة / تعديل / حذف مستقلة":"Per item: Add / Edit / Delete (independent)",
+  "🎯 الصلاحيات الدقيقة (لكل بند: إضافة / تعديل / حذف مستقلة)":"🎯 Granular Permissions (per item: Add / Edit / Delete)",
+  "كل الإضافات":"All Adds","كل التعديلات":"All Edits","كل الحذف":"All Deletes",
+  "➕ كل الإضافات":"➕ All Adds","✏️ كل التعديلات":"✏️ All Edits","🗑️ كل الحذف":"🗑️ All Deletes",
+  "❌ مسح الكل":"❌ Clear All","✅ الكل":"✅ All",
+  // Nav main
+  "القائمة الرئيسية":"Main Menu","لوحة التحكم":"Dashboard","القيود والحركات":"Journal Entries",
+  "الموردون":"Suppliers","العملاء":"Customers","الموظفون":"Employees","المرتبات":"Payroll",
+  "التقارير":"Reports","الحضور والغياب":"Attendance","كشف المرتبات":"Payroll Sheet",
+  "الموظفون والمرتبات":"Employees & Payroll","دليل الحسابات":"Chart of Accounts",
+  "موقف المواقع":"Locations Position","قائمة الدخل":"Income Statement","المركز المالي":"Financial Position",
+  "موازنة تمويل":"Funding Balance","التدفقات النقدية":"Cash Flows","مراكز التكلفة":"Cost Centers",
+  "التحليل المحوري Pivot":"Pivot Analysis","مركز التحليل الذكي":"AI Analytics Center",
+  "كشف بالموقع والشهر":"Location & Month Report","تقرير الموقع الشامل / المرن":"Comprehensive Location Report",
+  "كشف حساب شريك تفصيلى":"Partner Detailed Statement","أسعار المشتريات (فترات مرنة)":"Purchase Price Bands",
+  "التقارير اليدوية (منشئ مرن)":"Manual Report Builder","الشركاء حسب الموقع والمساحة":"Partners by Location & Area",
+  "ملخص إجمالى الأعمال":"Business Summary","تكاليف غير محمّلة على المواقع":"Unallocated Costs",
+  "أرصدة أول المدة":"Opening Balances","مصروفات مدفوعة مقدماً":"Prepaid Expenses","مدفوعات التفعيل":"Activation Payments",
+  "الإعدادات":"Settings","المرتبات التي لم يتم تحميلها على مركز التكلفة":"Unallocated Payroll",
+  "الخزينة والبنوك":"Treasury & Banks","الخزينة الرئيسية":"Main Treasury","العهد":"Custodies","السلف":"Advances",
+  "البنوك":"Banks","شيكات تحت التحصيل":"Cheques In Collection",
+  "الموردين والمشتريات":"Suppliers & Purchases","المشتريات":"Purchases","الموردين":"Suppliers",
+  "أرصدة الموردين":"Supplier Balances","موردين فراولة خارجيين":"External Strawberry Suppliers",
+  "المبيعات والعملاء":"Sales & Customers","المبيعات":"Sales","أرصدة العملاء":"Customer Balances",
+  "المصانع والشركات":"Factories & Companies","المخازن":"Inventory","المخازن والمشتريات":"Inventory & Purchases",
+  "التحويل بين المخازن":"Inter-Store Transfer","تنبيهات المخزن":"Store Alerts",
+  "تحليل محورى للمخازن":"Store Pivot Analysis","تقارير المخازن العملاقة":"Advanced Inventory Reports",
+  "اللوجستيات والتصدير للخارج":"Logistics & Export","التصدير والتجميد (IQF)":"Export & Freezing (IQF)",
+  "مصانع التشغيل والتعبئة":"Toll Manufacturing Plants","لوحة الشحنات":"Shipments Dashboard",
+  "عملاء التصدير":"Export Clients","عقود التصدير":"Export Contracts","الشحنات":"Shipments",
+  "المدفوعات والتحصيلات":"Payments & Collections","تقارير التصدير الشاملة":"Export Reports",
+  "تحليل التصدير":"Export Analytics","النشاط الزراعي":"Agricultural Activity",
+  "الشركاء وموقفهم":"Partners & Positions","المفرش والتجهيز":"Sorting & Prep",
+  "إيجار الأراضي":"Land Rent","الكهرباء":"Electricity","السيارات وميكنة":"Vehicles & Machinery",
+  "صوبة المفترسات":"Predators Greenhouse","الإدارة والتقارير":"Administration & Reports",
+  // Dashboard
+  "ملاحظات ومهام":"Notes & Tasks","ملخص اليوم":"Today's Summary","نشاط اليوم":"Today's Activity",
+  "آخر الحركات":"Recent Activity","أهم المؤشرات":"Key Indicators","آخر دخول":"Last Login",
+  "ملخص سريع":"Quick Summary","أهم العملاء":"Top Customers","أهم الموردين":"Top Suppliers",
+  // Audit / Devices
+  "أجهزة نشطة الآن":"Active Devices Now","عدد المستخدمين":"Users Count","حركات السجل":"Log Entries",
+  "IP الحالى":"Current IP","جلستك":"Your session","الأجهزة المتصلة الآن":"Devices connected now",
+  "من فعل ماذا ومتى ومن أى جهاز":"Who did what, when and from which device",
+  "خلال ٣ دقائق":"Within 3 minutes","مسجّلة":"recorded",
+  // Common UI phrases
+  "لا توجد بيانات":"No data","لا حركات":"No activity","لا مستخدمون":"No users",
+  "لا نتائج":"No results","لا توجد نتائج":"No results found",
+  "اضغط للتفاصيل":"Click for details","اضغط هنا":"Click here","اضغط للتبديل":"Click to toggle",
+  "جارٍ التحميل":"Loading...","جارى التحميل":"Loading...","جارى الحفظ":"Saving...","جارٍ الحفظ":"Saving...",
+  "تم بنجاح":"Success","فشل العملية":"Operation failed","خطأ":"Error","تحذير":"Warning",
+  // Logout / Login
+  "خروج":"Logout","دخول":"Login","تسجيل دخول":"Sign In","تسجيل خروج":"Sign Out",
+  "مرحباً":"Welcome","أهلاً":"Welcome","أهلاً بك":"Welcome","حسابى":"My Account",
+  // Specific labels user may encounter
+  "موسم":"Season","الموسم الحالى":"Current Season","المحاسب":"Accountant",
+  "أرباح":"Profits","خسائر":"Losses","الرصيد":"Balance","الحد الأقصى":"Max","الحد الأدنى":"Min",
+  "ملاحظات":"Notes","تفاصيل":"Details","مجموع":"Total","إجمالى":"Total","اجمالى":"Total",
+  "الوقت":"Time","اليوم":"Today","أمس":"Yesterday","هذا الأسبوع":"This Week","هذا الشهر":"This Month",
+  "رقم":"No.","#":"#","كود":"Code","النوع":"Type","التصنيف":"Category","الفئة":"Category",
+  "من":"From","إلى":"To","على":"On","بـ":"by","لـ":"to",
+  // Permissions UI
+  "علّم البنود المسموح بها":"Check allowed items","لصلاحيات دقيقة":"For granular permissions",
+  "🔒":"🔒","🛡️":"🛡️","⚙️":"⚙️","💾":"💾","🔔":"🔔","🖥️":"🖥️","📸":"📸",
+  // Audit specific
+  "جلسة جديدة":"New Session","المتصل":"Caller","المستضيف":"Host","البدء":"Start","مدة النشاط":"Duration",
+  "آخر نشاط":"Last Activity","بداية الجلسة":"Session Started","لم يسجّل دخول":"Never logged in",
+  "محمى":"Protected","أدمن":"Admin","أدمن (محمى)":"Admin (Protected)",
+  // Logistics specific
+  "عدد الشحنات":"Shipments Count","إجمالى الفوترة":"Total Invoiced","تم تحصيله":"Collected",
+  "متأخرات التحصيل":"Overdue Collections","المطلوب من كل عميل":"Due from each Client",
+  "شحنات بدون فاتورة":"Shipments without invoice","فواتير لم تُسدَّد":"Unpaid invoices",
+  // Mode buttons
+  "كامل":"Full","كاميرا":"Camera","شاشة":"Screen","أنت":"You","المحاسب":"Accountant","المطوّر":"Developer",
+  "اختر مستخدماً":"Pick a user","جلسة مباشرة":"Live Session","خيارات الجلسة":"Session Options",
+  "المستخدمون النشطون الآن":"Users active now","كل المستخدمين":"All Users",
+  "نشطين وغير نشطين":"Active and Inactive","اختبار محلى":"Local Test",
+  "أنت فقط":"Only you","بدون طلب موافقة":"No consent request",
+  "معاينة الجلسة بكاميرتى":"Preview session with my camera","إيقاف كل الكاميرات":"Stop all cameras",
+  "طلب كاميرا":"Camera Request","طلب جلسة":"Session Request",
+  "طلبات اتصال معلَّقة لك":"Pending connection requests for you",
+  "جلسات نشطة الآن":"Active sessions now","أدوات الجلسة":"Session Tools","أدوات إضافية":"Extra Tools",
+  "شارك شاشتى":"Share my screen","إرسال ملف":"Send file","طلبات كاميرا معلَّقة":"Pending camera requests",
+  "فتح الكاميرا الحية":"Open live camera","الكود بتاعى":"My Code","الاتصال بمحاسب":"Connect to Accountant",
+  "أدخل الكود":"Enter the code","اتصال بالمحاسب":"Connect to Accountant",
+  // Store specific
+  "كارتة":"Card","كارتة ميزان":"Balance Card","المخزن":"Warehouse","المخزن الرئيسى":"Main Warehouse",
+  "صرف من المخزن":"Issue from Store","تحويل بين المخازن":"Inter-Store Transfer",
+  "فاتورة شراء":"Purchase Invoice","فاتورة شراء المخزن":"Store Purchase Invoice",
+  "فاتورة مورد":"Supplier Invoice","فاتورة مورد جديدة":"New Supplier Invoice",
+  "فاتورة المبيعات":"Sales Invoice","فاتورة المبيعات نقدا":"Sales Invoice Cash",
+  "صنف":"Item","أصناف":"Items","مجموع المخزون":"Total Inventory","قيمة المخزون":"Inventory Value",
+  "أعلى استهلاكاً":"Top Consumption","تحليل ABC":"ABC Analysis","راكد":"Stagnant",
+  "منخفض":"Low","صفر":"Zero",
+  // Modes
+  "الكاميرا فقط":"Camera only","مشاركة شاشتك فقط":"Share screen only","شاشة + كاميرا معاً":"Screen + Camera together",
+  "محادثة وجهاً لوجه":"Face-to-face call","تشاهد ما يفعله":"See what they do",
+  "يرى المحاسب ويشرح وجهاً لوجه":"See the accountant and explain face to face"
+});
+
+/* Enhanced translateDOM that walks everything + handles mutation */
+App.translateDOM=function(){const lang=this.db&&this.db.lang;if(lang!=="en")return;
+  const map=App.EN_MAP;const keys=Object.keys(map).sort((a,b)=>b.length-a.length);
+  const walkText=(root)=>{if(!root)return;const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:(n)=>{const p=n.parentNode;if(!p)return NodeFilter.FILTER_REJECT;const tn=(p.tagName||"").toLowerCase();if(tn==="script"||tn==="style"||tn==="code"||tn==="input"||tn==="textarea")return NodeFilter.FILTER_REJECT;if(p.closest&&p.closest("[data-no-tr]"))return NodeFilter.FILTER_REJECT;return NodeFilter.FILTER_ACCEPT;}});
+    const nodes=[];let n;while(n=walker.nextNode())nodes.push(n);
+    nodes.forEach(node=>{let s=node.nodeValue;if(!s||!s.trim())return;let orig=s;let changed=false;
+      // Try exact match first
+      const trimmed=s.trim();if(map[trimmed]){const lead=s.match(/^\s*/)[0];const tail=s.match(/\s*$/)[0];node.nodeValue=lead+map[trimmed]+tail;return;}
+      // Partial replacement (sorted by length desc so longer keys match first)
+      keys.forEach(k=>{if(s.indexOf(k)>=0){s=s.split(k).join(map[k]);changed=true;}});
+      if(changed)node.nodeValue=s;});};
+  walkText(document.body);
+  // Placeholders / titles / aria-labels / values of disabled inputs
+  ["placeholder","title","aria-label"].forEach(attr=>{document.querySelectorAll("["+attr+"]").forEach(el=>{const v=el.getAttribute(attr);if(!v)return;let s=v;if(map[v]){el.setAttribute(attr,map[v]);return;}keys.forEach(k=>{if(s.indexOf(k)>=0)s=s.split(k).join(map[k]);});if(s!==v)el.setAttribute(attr,s);});});
+  // Translate buttons' option elements too
+  document.querySelectorAll("option").forEach(opt=>{const t=opt.textContent&&opt.textContent.trim();if(!t)return;if(map[t]){opt.textContent=map[t];return;}let s=opt.textContent;keys.forEach(k=>{if(s.indexOf(k)>=0)s=s.split(k).join(map[k]);});if(s!==opt.textContent)opt.textContent=s;});
+};
+
+/* Re-run translation whenever a modal opens (settings cards, user editor, etc.) */
+(function(){const origModal=App.modal;if(typeof origModal==="function"){App.modal=function(){const r=origModal.apply(this,arguments);setTimeout(()=>{try{App.translateDOM();}catch(e){}},80);return r;};}})();
+
+/* Run translation immediately on boot and after every render */
+(function(){const origBoot=App.boot;App.boot=function(){const r=origBoot.apply(this,arguments);setTimeout(()=>{try{App.translateDOM();}catch(e){}},200);return r;};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🌐 توسعة إضافية للترجمة الإنجليزية — تغطية أعمق
+   ══════════════════════════════════════════════════════════════════════════ */
+Object.assign(App.EN_MAP, {
+  "بيانات دخول المدير سرية ولا تظهر لأحد":"Admin credentials are private and never shown",
+  "لا يمكنك إنشاء مستخدمين بصلاحيات محدودة":"You can create users with limited permissions",
+  "(عرض فقط أو فتح حسابات)":"(View only, or Open-accounts)",
+  "إيميل الشركة (المزامنة السحابية)":"Company Email (Cloud Sync)",
+  "يستخدمه كل المحاسبين تلقائياً للمزامنة":"Used automatically by all accountants for sync",
+  "إيميل الشركة":"Company Email","كلمة مرور الإيميل":"Email Password",
+  "هذه البيانات محمية بباسورد رئيسى":"This data is protected by a master password",
+  "سياسة المصادقة":"Authentication Policy","ملحوظة":"Note","تنبيه":"Alert",
+  "التفعيل الشهري يمنع دخول المستخدم بعد التاريخ المحدد":"Monthly activation blocks user login after given date",
+  "المدير مُفعَّل مدى الحياة دائماً":"Admin is active lifetime always",
+  "ربط سحابى نشط":"Cloud sync active","ربط سحابى":"Cloud Sync","متصل":"Connected",
+  "بلا اتصال":"Offline","سحابتى":"My Cloud","☁️ متصل":"☁️ Connected",
+  "اضغط لقطع الاتصال بالسحابة":"Click to disconnect from cloud",
+  "إعدادات الربط السحابى الخاص بى":"My cloud sync settings",
+  "اختر مستخدماً للتعديل":"Pick a user to edit",
+  "أزل الفحص للسماح له بالدخول دائماً":"Uncheck to allow permanent login",
+  "تفعيل حتى تاريخ":"Active until date","يمنع دخوله بعد هذا التاريخ":"Blocks login after this date",
+  "مدير — كل الصلاحيات":"Admin — all permissions","فتح حسابات":"Open Accounts","شهري":"Monthly",
+  // Table / dialog
+  "اسم المستخدم (Username)":"Username","المهنة / الدور":"Role",
+  "الهاتف":"Phone","التفعيل الشهري":"Monthly Activation","مدى الحياة":"Lifetime",
+  "فتح حسابات":"Open Accounts","مدير — كل الصلاحيات":"Admin — Full Permissions",
+  // Buttons common
+  "💾 حفظ":"💾 Save","💾 حفظ الفاتورة":"💾 Save Invoice","💾 حفظ التعديل":"💾 Save Changes",
+  "💾 حفظ الصلاحيات":"💾 Save Permissions","💾 حفظ كلمة المرور":"💾 Save Password",
+  "➕ مستخدم":"➕ User","➕ موقع":"➕ Location","➕ شريك":"➕ Partner",
+  "✏️ تعديل":"✏️ Edit","🗑️ حذف":"🗑️ Delete","+ مستخدم":"+ User",
+  // Audit log columns
+  "التفاصيل":"Details","العملية":"Action","المستخدم":"User","الجهاز":"Device",
+  "من فعل ماذا":"Who did what","متى":"When","أى جهاز":"Which device",
+  // Settings extra
+  "اسم الشركة":"Company Name","الشعار":"Logo","توقيع المدير":"Admin Signature",
+  "رقم الهاتف":"Phone Number","العنوان":"Address","البريد الإلكتروني":"Email",
+  "الفاكس":"Fax","الموقع الإلكترونى":"Website",
+  "اختر صورة":"Choose Image","لا ملف مختار":"No file chosen",
+  "اختر ملف":"Choose File","Choose File":"Choose File","No file chosen":"No file chosen",
+  // Dashboard tiles
+  "إجمالى الأرصدة":"Total Balances","الأرصدة الدائنة":"Credit Balances",
+  "الأرصدة المدينة":"Debit Balances","صافى الربح":"Net Profit","صافي الربح":"Net Profit",
+  "إجمالى المبيعات":"Total Sales","إجمالى المشتريات":"Total Purchases","الإيرادات":"Revenues",
+  "المصروفات":"Expenses","المصاريف":"Expenses",
+  // Forms
+  "رقم":"No.","رقم الفاتورة":"Invoice No.","تاريخ الاستحقاق":"Due Date",
+  "طريقة الدفع":"Payment Method","مصدر الدفع":"Payment Source","المرفقات":"Attachments",
+  "رفع ملف":"Upload File","مرفق":"Attachment","إرفاق":"Attach",
+  // Common lots
+  "صرف نقدى":"Cash Disbursement","صرف شيك":"Cheque Disbursement","تحصيل نقدى":"Cash Collection",
+  "تحويل بنكى":"Bank Transfer","قيد افتتاحى":"Opening Entry",
+  // Quick actions
+  "إجراءات سريعة":"Quick Actions","أدوات":"Tools","خيارات":"Options",
+  "عرض":"View","تحكم":"Control","استعراض":"Browse",
+  // Common state verbs
+  "تم إضافة":"Added","تم تعديل":"Updated","تم حذف":"Deleted","تمَّت الإضافة":"Added successfully",
+  "تمَّ الحفظ":"Saved","تمَّ الحذف":"Deleted","تمَّ الاعتماد":"Approved",
+  // Shipment / logistics
+  "رقم الشحنة":"Shipment No.","رقم التتبع":"Tracking No.","Container":"Container",
+  "تاريخ المغادرة":"Departure Date","تاريخ الوصول":"Arrival Date",
+  "ETD (Departure)":"ETD (Departure)","ETA (Arrival)":"ETA (Arrival)",
+  "البلد":"Country","ميناء التفريغ":"Port of Discharge","الوكيل":"Agent",
+  "القيمة بالعملة":"Value in Currency","القيمة بالجنيه":"Value in EGP",
+  "سعر الصرف":"Exchange Rate","العملة":"Currency",
+  // Cards
+  "لا شحنات":"No shipments","لا عملاء":"No clients","لا موردين":"No suppliers",
+  "لا منتجات":"No products","لا بيانات لعرضها":"No data to show",
+  // Buttons specific
+  "فتح الحساب":"Open Account","كشف الحساب":"Account Statement","كشف مفصل":"Detailed Statement",
+  "طباعة الكشف":"Print Statement","تصدير الكشف":"Export Statement","إيميل":"Email",
+  // Extra UI
+  "جميع الحقوق محفوظة":"All rights reserved","المطور":"Developer","قسم الحسابات":"Accounting Dept.",
+  "إعداد وتطوير":"Prepared & Developed by","© 2026":"© 2026",
+  "البرنامج محمى":"Program is protected","الإصدار":"Version","آخر تحديث":"Last Update",
+  // Common toasts
+  "تم بنجاح":"Done successfully","لا تملك صلاحية":"No permission","أدخل القيمة":"Enter value",
+  "أكمل البيانات":"Complete the data","اختر على الأقل":"Pick at least one"
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🖥️ WebRTC Peer Connection — إرسال فيديو حقيقى بين الأجهزة عبر Firebase
+   • يستخدم السحابة الموجودة أصلاً للـ signaling (offer/answer/ICE)
+   • يبدأ تلقائياً مع كل جلسة Remote Assist نشطة
+   ══════════════════════════════════════════════════════════════════════════ */
+App._rtcICE=[{urls:"stun:stun.l.google.com:19302"},{urls:"stun:stun1.l.google.com:19302"}];
+
+/* Start a WebRTC connection for an active session — role: "offer" (developer) or "answer" (accountant) */
+App.rtcStart=function(code,role){try{if(!window.RTCPeerConnection)return;
+  if(App._rtcPc){try{App._rtcPc.close();}catch(e){}App._rtcPc=null;}
+  const pc=new RTCPeerConnection({iceServers:App._rtcICE});
+  App._rtcPc=pc;
+  // Attach any local streams we have (camera + screen) to the connection
+  const addAllLocal=()=>{
+    if(App._sessionMedia&&App._sessionMedia.camLocal){try{App._sessionMedia.camLocal.getTracks().forEach(t=>pc.addTrack(t,App._sessionMedia.camLocal));}catch(e){}}
+    if(App._sessionMedia&&App._sessionMedia.screen){try{App._sessionMedia.screen.getTracks().forEach(t=>pc.addTrack(t,App._sessionMedia.screen));}catch(e){}}
+  };addAllLocal();
+  App._rtcAddTracks=addAllLocal;
+  // Receive remote tracks → bind to the video elements (remote screen in main, remote camera in PiP)
+  pc.ontrack=(ev)=>{const s=ev.streams[0];if(!s)return;
+    // First remote stream with video goes to the main screen; subsequent to the camera remote PiP
+    const screenEl=document.getElementById("svScreen");const camEl=document.getElementById("svCamRemote");const waitEl=document.getElementById("svRemoteWait");
+    const hasVideo=s.getVideoTracks().length>0;
+    if(!App._rtcMainBound&&screenEl&&hasVideo){screenEl.srcObject=s;const ph=document.getElementById("svPlaceholder");if(ph)ph.style.display="none";App._rtcMainBound=true;return;}
+    if(camEl&&hasVideo){camEl.srcObject=s;if(waitEl)waitEl.style.display="none";}
+  };
+  // ICE candidate — push to Firebase under the session code
+  pc.onicecandidate=(ev)=>{if(ev.candidate){App._rtcPushSignal(code,role==="offer"?"offerIce":"answerIce",ev.candidate.toJSON());}};
+  pc.oniceconnectionstatechange=()=>{if(pc.iceConnectionState==="failed"||pc.iceConnectionState==="disconnected"){App.logAudit&&App.logAudit("RTC","connection: "+pc.iceConnectionState);}};
+  // Signaling: offer (developer) or answer (accountant)
+  (async()=>{try{
+    if(role==="offer"){const offer=await pc.createOffer({offerToReceiveAudio:false,offerToReceiveVideo:true});await pc.setLocalDescription(offer);App._rtcPushSignal(code,"offer",{type:offer.type,sdp:offer.sdp});App._rtcWatchFor(code,"answer",async(ans)=>{if(pc.remoteDescription)return;await pc.setRemoteDescription(new RTCSessionDescription(ans));});App._rtcWatchFor(code,"answerIce",async(cand)=>{try{await pc.addIceCandidate(new RTCIceCandidate(cand));}catch(e){}},true);}
+    else{App._rtcWatchFor(code,"offer",async(off)=>{if(pc.remoteDescription)return;await pc.setRemoteDescription(new RTCSessionDescription(off));const ans=await pc.createAnswer();await pc.setLocalDescription(ans);App._rtcPushSignal(code,"answer",{type:ans.type,sdp:ans.sdp});});App._rtcWatchFor(code,"offerIce",async(cand)=>{try{await pc.addIceCandidate(new RTCIceCandidate(cand));}catch(e){}},true);}
+  }catch(e){console.warn("RTC signaling error",e);}})();
+}catch(e){console.warn("RTC start error",e);}};
+
+/* Push signaling data to Firebase (via existing cloud ref) OR fallback to localStorage */
+App._rtcPushSignal=function(code,key,val){try{if(App._cloudRef&&App._cloudRef.child){const ref=App._cloudRef.child("rtc").child(code).child(key);
+    if(key.endsWith("Ice")){const list=App._iceCache&&App._iceCache[code]&&App._iceCache[code][key]||[];list.push(val);App._iceCache=App._iceCache||{};App._iceCache[code]=App._iceCache[code]||{};App._iceCache[code][key]=list;ref.set(list);}
+    else{ref.set(val);}return;}}catch(e){}
+  // Fallback: localStorage
+  try{const k="rtc_"+code+"_"+key;if(key.endsWith("Ice")){const prev=JSON.parse(localStorage.getItem(k)||"[]");prev.push(val);localStorage.setItem(k,JSON.stringify(prev));}else{localStorage.setItem(k,JSON.stringify(val));}}catch(e){}};
+
+App._rtcWatchFor=function(code,key,cb,isArray){
+  const CHK=800;const seen={};let n=0;
+  const check=async()=>{n++;if(n>400)return;/* ~5 min */
+    let data=null;
+    try{if(App._cloudRef&&App._cloudRef.child){const snap=await App._cloudRef.child("rtc").child(code).child(key).once("value");data=snap.val();}}catch(e){}
+    if(data==null){try{data=JSON.parse(localStorage.getItem("rtc_"+code+"_"+key)||"null");}catch(e){}}
+    if(data!=null){if(isArray&&Array.isArray(data)){data.forEach((item,i)=>{const sig=JSON.stringify(item);if(!seen[sig]){seen[sig]=1;cb(item);}});}else if(!isArray){cb(data);return;/*stop*/}}
+    setTimeout(check,CHK);};check();};
+
+/* Hook into session start to also kick off WebRTC */
+(function(){const origStart=App._raStartSession;App._raStartSession=function(code,rid){origStart.apply(this,arguments);setTimeout(()=>App.rtcStart(code,"offer"),800);};})();
+(function(){const origAccept=App._acceptSessionReq;App._acceptSessionReq=function(rid){const r=(this.db.remoteRequests||[]).find(x=>x.id===rid);origAccept.apply(this,arguments);if(r&&r.targetCode)setTimeout(()=>App.rtcStart(r.targetCode,"answer"),1200);};})();
+
+/* Hook: when the session's media starts, re-add local tracks to the active PC */
+(function(){const origSMedia=App._sessionStartMedia;App._sessionStartMedia=function(){origSMedia.apply(this,arguments);setTimeout(()=>{try{if(App._rtcAddTracks)App._rtcAddTracks();}catch(e){}},1500);};})();
+
+/* Clean up RTC on session end */
+(function(){const origEnd=App.raEndSmartSession;App.raEndSmartSession=function(){try{if(App._rtcPc){App._rtcPc.close();App._rtcPc=null;App._rtcMainBound=false;}}catch(e){}return origEnd.apply(this,arguments);};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🎛️ سويتش iOS فى نموذج المستخدم: قراءة فقط ⇄ عمليات (إضافة/تعديل/حذف)
+   ══════════════════════════════════════════════════════════════════════════ */
+App._injectPermModeStyles=function(){if(document.getElementById("permModeCSS"))return;
+  const s=document.createElement("style");s.id="permModeCSS";s.textContent=`
+    .permModeBar{display:flex;align-items:center;gap:14px;padding:14px 18px;margin:8px 0 14px;background:linear-gradient(135deg,#f0f9ff,#dbeafe);border:2px solid #93c5fd;border-radius:14px;flex-wrap:wrap;box-shadow:0 4px 12px -3px rgba(59,130,246,.15)}
+    .permModeBar .pml{font-weight:900;font-size:14px;color:#0f2038;display:flex;align-items:center;gap:8px}
+    .permModeSw{position:relative;display:inline-block;width:88px;height:32px;cursor:pointer;flex-shrink:0}
+    .permModeSw input{opacity:0;width:0;height:0}
+    .permModeSw .sl{position:absolute;inset:0;background:linear-gradient(135deg,#64748b,#475569);border-radius:999px;transition:.3s cubic-bezier(.68,-.3,.32,1.3);box-shadow:inset 0 2px 4px rgba(0,0,0,.2)}
+    .permModeSw .sl:before{position:absolute;content:"";height:26px;width:26px;left:3px;bottom:3px;background:#fff;transition:.3s cubic-bezier(.68,-.3,.32,1.3);border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+    .permModeSw input:checked+.sl{background:linear-gradient(135deg,#22c55e,#15803d)}
+    .permModeSw input:checked+.sl:before{transform:translateX(56px)}
+    .permModeState{padding:6px 14px;border-radius:999px;font-weight:900;font-size:12.5px;transition:all .3s}
+    .permModeState.ro{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1.5px solid #fbbf24}
+    .permModeState.op{background:linear-gradient(135deg,#dcfce7,#bbf7d0);color:#065f46;border:1.5px solid #22c55e}
+    .permModeHint{font-size:12px;color:#475569;line-height:1.6;flex-basis:100%}
+    /* Read-only permission grid (single column of checkboxes) */
+    .roPermGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;padding:12px}
+    .roPermItem{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;transition:background .15s}
+    .roPermItem:hover{background:#eff6ff;border-color:#93c5fd}
+    .roPermItem input{width:16px;height:16px;cursor:pointer}
+    .roPermItem label{flex:1;font-size:12.5px;font-weight:700;cursor:pointer;color:#334155}
+    .roPermItem .pkey{font-size:10px;color:#94a3b8;font-weight:600}
+  `;document.head.appendChild(s);};
+
+/* Override editUserAdvanced to inject the mode switch and support read-only mode */
+(function(){const orig=App.editUserAdvanced;App.editUserAdvanced=function(id){orig.apply(this,arguments);
+  setTimeout(()=>{try{App._injectModeSwitch(id);}catch(e){console.error("mode switch",e);}},100);
+};})();
+
+App._injectModeSwitch=function(id){App._injectPermModeStyles();
+  const u=id?this.db.users.find(x=>x.id===id):null;
+  const isRO=!!(u&&u.perms&&u.perms.readOnly);
+  const permCard=Array.from(document.querySelectorAll(".modal .card")).find(c=>{const h=c.querySelector(".card-h");return h&&h.textContent.indexOf("الصلاحيات")>=0;});
+  if(!permCard||document.getElementById("permModeBar"))return;
+  const bar=document.createElement("div");bar.id="permModeBar";bar.className="permModeBar";
+  bar.innerHTML=`
+    <span class="pml">🎛️ نوع الصلاحيات:</span>
+    <label class="permModeSw" title="اضغط للتبديل">
+      <input type="checkbox" id="permModeChk" ${!isRO?'checked':''}>
+      <span class="sl"></span>
+    </label>
+    <span class="permModeState ${isRO?'ro':'op'}" id="permModeState">${isRO?'🔒 قراءة فقط':'✍️ عمليات (إضافة/تعديل/حذف)'}</span>
+    <span class="permModeHint" id="permModeHint">${isRO?'📖 المستخدم يستطيع فقط <b>عرض البيانات</b> من البنود المسموح له بها — بدون إضافة أو تعديل أو حذف.':'🔧 المستخدم يستطيع <b>التحكم الكامل</b> فى البنود المسموح له بها — تحدَّد ٣ سويتشات (إضافة/تعديل/حذف) لكل بند.'}</span>
+  `;
+  permCard.insertBefore(bar,permCard.firstChild);
+  const chk=document.getElementById("permModeChk");
+  chk.onchange=()=>{const op=chk.checked;const state=document.getElementById("permModeState");const hint=document.getElementById("permModeHint");
+    if(op){state.textContent='✍️ عمليات (إضافة/تعديل/حذف)';state.className='permModeState op';hint.innerHTML='🔧 المستخدم يستطيع <b>التحكم الكامل</b> فى البنود المسموح له بها — تحدَّد ٣ سويتشات (إضافة/تعديل/حذف) لكل بند.';}
+    else{state.textContent='🔒 قراءة فقط';state.className='permModeState ro';hint.innerHTML='📖 المستخدم يستطيع فقط <b>عرض البيانات</b> من البنود المسموح له بها — بدون إضافة أو تعديل أو حذف.';}
+    App._rebuildPermsForMode(op,u);
+  };
+  // On initial render — if read-only mode, replace the grid
+  if(isRO)App._rebuildPermsForMode(false,u);
+};
+
+App._rebuildPermsForMode=function(isOperations,user){
+  const permCard=Array.from(document.querySelectorAll(".modal .card")).find(c=>{const h=c.querySelector(".card-h");return h&&h.textContent.indexOf("الصلاحيات")>=0;});
+  if(!permCard)return;
+  const body=permCard.querySelector(".card-b");if(!body)return;
+  const header=permCard.querySelector(".card-h");
+  if(isOperations){
+    // Operations mode: use the original 3-sub-permission grid
+    if(header){const act=header.querySelector(".act");if(act)act.style.display="";header.firstChild&&(header.firstChild.textContent||"").indexOf("قراءة فقط")>=0&&(header.firstChild.textContent="🎯 الصلاحيات الدقيقة (لكل بند: إضافة / تعديل / حذف مستقلة)");}
+    // Restore the 3-column table (regenerate it from PERMS)
+    App._renderOperationsGrid(body,user);
+  }else{
+    // Read-only mode: single checkbox per permission (view access)
+    if(header){const t=header.querySelector("span")||header.firstChild;}
+    App._renderReadOnlyGrid(body,user);
+  }
+  // Keep search box visible across modes
+  setTimeout(()=>App._injectPermsSearch&&App._injectPermsSearch(),80);
+};
+
+App._renderOperationsGrid=function(body,user){
+  const u=user;
+  const rows=(typeof PERMS!=="undefined"?PERMS:[]).map(pr=>{const key=pr[0];const label=pr[1];const cur=u&&u.perms&&u.perms[key];
+    if(key==="readOnly")return "";
+    const addCh=cur===true||(cur&&typeof cur==="object"&&cur.add)?"checked":"";
+    const editCh=cur===true||(cur&&typeof cur==="object"&&cur.edit)?"checked":"";
+    const delCh=cur===true||(cur&&typeof cur==="object"&&cur.del)?"checked":"";
+    return `<tr>
+      <td class="r"><b>${esc(label)}</b><br><span class="hint" style="font-size:10.5px">${esc(key)}</span></td>
+      <td style="text-align:center"><label style="cursor:pointer"><input type="checkbox" class="permS" data-k="${esc(key)}" data-s="add" ${addCh}> ➕ إضافة</label></td>
+      <td style="text-align:center"><label style="cursor:pointer"><input type="checkbox" class="permS" data-k="${esc(key)}" data-s="edit" ${editCh}> ✏️ تعديل</label></td>
+      <td style="text-align:center"><label style="cursor:pointer"><input type="checkbox" class="permS" data-k="${esc(key)}" data-s="del" ${delCh}> 🗑️ حذف</label></td>
+      <td style="text-align:center"><button class="btn gh sm" onclick="App._permRowAll(this,true)">✅ الكل</button><button class="btn gh sm" onclick="App._permRowAll(this,false)">❌</button></td>
+    </tr>`;}).join("");
+  body.className="card-b p0";body.innerHTML=`<div class="tw" style="max-height:60vh;overflow:auto">
+    <table class="t"><thead><tr><th class="r">البند</th><th>إضافة</th><th>تعديل</th><th>حذف</th><th>اختصار</th></tr></thead><tbody>${rows}</tbody></table>
+   </div>`;
+};
+
+App._renderReadOnlyGrid=function(body,user){
+  const u=user;
+  const items=(typeof PERMS!=="undefined"?PERMS:[]).filter(pr=>pr[0]!=="readOnly").map(pr=>{const key=pr[0];const label=pr[1];
+    const cur=u&&u.perms&&u.perms[key];const viewOn=(cur===true||(cur&&typeof cur==="object"));
+    return `<div class="roPermItem"><input type="checkbox" class="permView" data-k="${esc(key)}" id="rov_${esc(key)}" ${viewOn?'checked':''}><label for="rov_${esc(key)}">${esc(label)}<br><span class="pkey">${esc(key)}</span></label></div>`;
+  }).join("");
+  body.className="card-b";body.innerHTML=`
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <button class="btn gh sm" onclick="document.querySelectorAll('.permView').forEach(c=>c.checked=true)">✅ تحديد كل البنود للعرض</button>
+      <button class="btn gh sm" onclick="document.querySelectorAll('.permView').forEach(c=>c.checked=false)">❌ مسح الكل</button>
+    </div>
+    <div class="roPermGrid">${items}</div>`;
+};
+
+/* Override _saveUserAdvanced to handle both modes */
+App._saveUserAdvanced=function(id){const name=$("#uAdvName").value.trim();const uname=$("#uAdvUname").value.trim();const pass=$("#uAdvPass").value;const isAdmin=$("#uAdvRole").value==="admin";
+  if(!name||!uname){toast("أكمل الاسم واسم الدخول","err");return;}
+  const perms={};const chk=document.getElementById("permModeChk");const isOperations=chk&&chk.checked;
+  if(isOperations){
+    document.querySelectorAll(".permS:checked").forEach(cb=>{const k=cb.dataset.k;const s=cb.dataset.s;perms[k]=perms[k]||{};perms[k][s]=true;});
+  }else{
+    // Read-only mode: mark readOnly flag + grant VIEW access to checked items
+    perms.readOnly=true;
+    document.querySelectorAll(".permView:checked").forEach(cb=>{const k=cb.dataset.k;perms[k]={add:false,edit:false,del:false,view:true};});
+  }
+  let u=id?this.db.users.find(x=>x.id===id):null;
+  if(u){u.name=name;u.username=uname;u.admin=isAdmin;u.perms=perms;if(pass)u.ph=this._hashPass?this._hashPass(pass):pass;}
+  else{const nu={id:uid(),name,username:uname,admin:isAdmin,perms,ph:pass?(this._hashPass?this._hashPass(pass):pass):""};this.db.users=this.db.users||[];this.db.users.push(nu);}
+  this.save();this.closeModal();this.render();
+  const permCnt=Object.keys(perms).filter(k=>k!=="readOnly").length;
+  toast("✅ تم حفظ المستخدم ("+(isOperations?"عمليات":"قراءة فقط")+" — "+permCnt+" بند)");
+};
+
+/* Also: ensure that read-only users show in audit log listings correctly */
+App.isReadOnly=function(){const u=this.auth.user;return !!(u&&!u.admin&&u.perms&&u.perms.readOnly);};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   💬 نظام الرسائل والملفات بين المستخدمين — تصميم iOS/Telegram-style
+   ══════════════════════════════════════════════════════════════════════════ */
+App._ensureMsg=function(){const d=this.db;if(!d.messages)d.messages=[];if(!d.msgRead)d.msgRead={};if(!d.chatThemes)d.chatThemes={};};
+App.msgThemes=[
+  {k:"ocean",n:"المحيط",bg:"linear-gradient(135deg,#0ea5e9,#0369a1)",me:"linear-gradient(135deg,#06b6d4,#0891b2)",ic:"🌊"},
+  {k:"sunset",n:"الغروب",bg:"linear-gradient(135deg,#f97316,#ea580c)",me:"linear-gradient(135deg,#fb923c,#f97316)",ic:"🌅"},
+  {k:"forest",n:"الغابة",bg:"linear-gradient(135deg,#059669,#065f46)",me:"linear-gradient(135deg,#22c55e,#15803d)",ic:"🌲"},
+  {k:"royal",n:"الملكى",bg:"linear-gradient(135deg,#7c3aed,#4c1d95)",me:"linear-gradient(135deg,#a78bfa,#7c3aed)",ic:"👑"},
+  {k:"rose",n:"الوردى",bg:"linear-gradient(135deg,#ec4899,#be185d)",me:"linear-gradient(135deg,#f472b6,#ec4899)",ic:"🌹"},
+  {k:"gold",n:"الذهبى",bg:"linear-gradient(135deg,#f59e0b,#b45309)",me:"linear-gradient(135deg,#fbbf24,#f59e0b)",ic:"✨"},
+  {k:"night",n:"الليل",bg:"linear-gradient(135deg,#1e293b,#0f172a)",me:"linear-gradient(135deg,#3b82f6,#1e40af)",ic:"🌙"},
+];
+App.getChatTheme=function(){const myId=this.auth.user&&this.auth.user.id;const k=(this.db.chatThemes||{})[myId]||"ocean";return this.msgThemes.find(x=>x.k===k)||this.msgThemes[0];};
+App.setChatTheme=function(k){this._ensureMsg();const myId=this.auth.user.id;this.db.chatThemes[myId]=k;this.save();if(App._chatOpen)App._renderChatPanel(App._chatPeer);};
+
+App.sendMessage=function(toUid,text,attachment,kind){this._ensureMsg();const fromUid=this.auth.user.id;
+  const m={id:uid(),at:Date.now(),from:fromUid,to:toUid,text:text||"",kind:kind||"text",attachment:attachment||null,readAt:null};
+  this.db.messages.push(m);this.save(true);
+  // Notify receiver via admin notification pipeline (reused generic notifier)
+  try{App.notifyAdmin("edit","💬 رسالة جديدة من "+(this.auth.user.name)+" ← "+(this.acct?"":(this.db.users.find(u=>u.id===toUid)||{}).name||""));}catch(e){}
+  return m;};
+App.getConversation=function(uid1,uid2){this._ensureMsg();return (this.db.messages||[]).filter(m=>(m.from===uid1&&m.to===uid2)||(m.from===uid2&&m.to===uid1)).sort((a,b)=>a.at-b.at);};
+App.unreadCount=function(forUid,fromUid){const list=(this.db.messages||[]).filter(m=>m.to===forUid&&!m.readAt);return fromUid?list.filter(m=>m.from===fromUid).length:list.length;};
+App.markRead=function(uid1,uid2){const now=Date.now();(this.db.messages||[]).forEach(m=>{if(m.to===uid1&&m.from===uid2&&!m.readAt)m.readAt=now;});this.save(true);};
+App.deleteMessage=function(mid){const m=(this.db.messages||[]).find(x=>x.id===mid);if(!m)return;
+  if(m.from!==this.auth.user.id&&!this.auth.user.admin){toast("لا يمكنك حذف رسالة غيرك","err");return;}
+  this.db.messages=this.db.messages.filter(x=>x.id!==mid);this.save(true);App._renderChatPanel(App._chatPeer);};
+
+/* ================== Pages.inbox — Beautiful chat inbox ================== */
+Pages.inbox=function(){App._ensureMsg();const myUid=App.auth.user.id;const users=(App.db.users||[]).filter(u=>u.id!==myUid);
+  const theme=App.getChatTheme();
+  App._injectChatCSS();
+  // Pre-select chat peer from state
+  if(!App._chatPeer&&users[0])App._chatPeer=users[0].id;
+  const peer=users.find(u=>u.id===App._chatPeer);
+  return head("💬","الرسائل والملفات","محادثات نصية + صوتية + ملفات بين المستخدمين — ثيمات متعددة بتصميم جميل",
+    `<button class="btn gold sm" onclick="App.pickChatTheme()">🎨 ثيم الشات</button>`)+`
+   <div class="chatApp" style="display:grid;grid-template-columns:300px 1fr;gap:0;height:68vh;background:#f8fafc;border-radius:18px;overflow:hidden;box-shadow:0 20px 50px -10px rgba(15,32,56,.18);border:1px solid #e2e8f0">
+    <div class="chatSide" style="background:#fff;border-inline-end:1px solid #e2e8f0;overflow-y:auto">
+     <div style="padding:14px 16px;background:linear-gradient(180deg,#f8fafc,#f1f5f9);border-bottom:1px solid #e2e8f0;font-weight:900;font-size:14px;display:flex;align-items:center;gap:10px">
+       <span style="width:36px;height:36px;background:${theme.bg};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;box-shadow:0 4px 10px -2px rgba(0,0,0,.15)">${esc(App.auth.user.name.charAt(0).toUpperCase())}</span>
+       <div><div>${esc(App.auth.user.name)}</div><div style="font-size:11px;color:#64748b;font-weight:600">${esc(App.auth.user.admin?'🛡️ أدمن':'👤 مستخدم')}</div></div>
+     </div>
+     ${users.map(u=>{const conv=App.getConversation(myUid,u.id);const last=conv[conv.length-1];const unread=App.unreadCount(myUid,u.id);const active=u.id===App._chatPeer;const t2=App.msgThemes[(u.name.charCodeAt(0)||0)%App.msgThemes.length];
+       return `<div class="chatContactRow" onclick="App._chatPeer='${u.id}';App.markRead('${myUid}','${u.id}');App.render()" style="padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f1f5f9;background:${active?'linear-gradient(90deg,#eff6ff,transparent)':'transparent'};border-inline-start:3px solid ${active?'#2e6df0':'transparent'};transition:all .2s">
+         <span style="width:42px;height:42px;background:${t2.bg};color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;box-shadow:0 4px 10px -2px rgba(0,0,0,.15);flex-shrink:0">${esc(u.name.charAt(0).toUpperCase())}</span>
+         <div style="flex:1;min-width:0">
+           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:13.5px">${esc(u.name)}</b><span style="font-size:10.5px;color:#94a3b8">${last?App._msgTime(last.at):''}</span></div>
+           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span style="font-size:11.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px">${last?(last.kind==='voice'?'🎤 رسالة صوتية':last.kind==='file'?'📎 '+(last.attachment&&last.attachment.name||'ملف'):esc(last.text).slice(0,32)):'<span style="color:#cbd5e1">لا رسائل</span>'}</span>${unread>0?`<span style="background:#ef4444;color:#fff;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:900">${unread}</span>`:''}</div>
+         </div>
+       </div>`;}).join("")||`<div style="padding:20px;text-align:center;color:#94a3b8">لا مستخدمين آخرون</div>`}
+    </div>
+    <div class="chatMain" id="chatMain" style="display:flex;flex-direction:column">
+     ${peer?App._renderChatBody(peer,myUid,theme):'<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-direction:column;gap:12px"><div style="font-size:60px">💬</div><div style="font-size:14px">اختر مستخدماً لبدء محادثة</div></div>'}
+    </div>
+   </div>`;};
+Pages.inbox.meta={title:"الرسائل والملفات",crumb:"الإعدادات"};
+
+App._renderChatBody=function(peer,myUid,theme){const conv=App.getConversation(myUid,peer.id);
+  const peerTheme=App.msgThemes[(peer.name.charCodeAt(0)||0)%App.msgThemes.length];
+  return `
+   <div style="padding:14px 18px;background:${theme.bg};color:#fff;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+     <span style="width:42px;height:42px;background:rgba(255,255,255,.2);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;backdrop-filter:blur(10px)">${esc(peer.name.charAt(0).toUpperCase())}</span>
+     <div style="flex:1"><div style="font-weight:900;font-size:15px">${esc(peer.name)}</div><div style="font-size:11px;opacity:.9">${esc(peer.admin?'🛡️ أدمن':'👤 مستخدم')} · ${conv.length} رسالة</div></div>
+     <button class="btn gh sm" onclick="App._exportConv('${peer.id}')" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">💾 حفظ المحادثة</button>
+   </div>
+   <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:18px;background:#f8fafc;background-image:radial-gradient(circle at 20% 50%,rgba(14,165,233,.03),transparent 50%),radial-gradient(circle at 80% 80%,rgba(236,72,153,.03),transparent 50%)">
+     ${conv.length?conv.map(m=>App._renderMsgBubble(m,myUid,theme)).join(""):'<div style="text-align:center;color:#94a3b8;padding:40px;font-size:13px">لا رسائل بعد — ابدأ المحادثة</div>'}
+   </div>
+   <div style="padding:14px 16px;background:#fff;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">
+     <input type="text" id="chatInput" placeholder="اكتب رسالة..." style="flex:1;padding:12px 16px;border:1.5px solid #e2e8f0;border-radius:999px;font-size:13.5px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='#2e6df0'" onblur="this.style.borderColor='#e2e8f0'" onkeydown="if(event.key==='Enter')App._sendChat('${peer.id}')">
+     <button onclick="App._attachChatFile('${peer.id}')" title="إرفاق ملف" style="width:42px;height:42px;background:linear-gradient(135deg,#64748b,#475569);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:16px;box-shadow:0 4px 10px -2px rgba(0,0,0,.2);transition:transform .15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📎</button>
+     <button id="chatVoiceBtn" onclick="App._toggleVoiceRec('${peer.id}')" title="تسجيل صوتى" style="width:42px;height:42px;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:16px;box-shadow:0 4px 10px -2px rgba(0,0,0,.2);transition:transform .15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">🎤</button>
+     <button onclick="App._sendChat('${peer.id}')" title="إرسال" style="width:42px;height:42px;background:${theme.me};color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:16px;box-shadow:0 4px 10px -2px rgba(0,0,0,.2);transition:transform .15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📤</button>
+   </div>`;};
+
+App._renderMsgBubble=function(m,myUid,theme){const mine=m.from===myUid;const t=new Date(m.at);const time=App._msgTime(m.at);
+  const bubble=mine?theme.me:'linear-gradient(135deg,#fff,#f8fafc)';
+  const color=mine?'#fff':'#0f172a';const align=mine?'flex-end':'flex-start';
+  let content="";
+  if(m.kind==="voice"){content=`<audio controls src="${esc(m.attachment&&m.attachment.data||'')}" style="height:36px;max-width:220px"></audio>`;}
+  else if(m.kind==="file"&&m.attachment){content=`<a href="${esc(m.attachment.data||'')}" download="${esc(m.attachment.name||'file')}" style="color:${color};text-decoration:none;display:flex;align-items:center;gap:10px;padding:4px 0"><span style="width:38px;height:38px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">📎</span><span><b style="font-size:12.5px">${esc(m.attachment.name||'ملف')}</b><br><span style="font-size:10.5px;opacity:.85">${(m.attachment.size/1024).toFixed(1)} KB · اضغط للتحميل</span></span></a>`;}
+  else{content=`<div style="white-space:pre-wrap;word-wrap:break-word">${esc(m.text||'')}</div>`;}
+  const readMark=mine?(m.readAt?'<span title="قُرأت" style="color:rgba(255,255,255,.9);font-size:10px">✓✓</span>':'<span title="أُرسلت" style="color:rgba(255,255,255,.6);font-size:10px">✓</span>'):'';
+  return `<div style="display:flex;justify-content:${align};margin-bottom:10px">
+    <div style="max-width:70%;background:${bubble};color:${color};padding:10px 14px;border-radius:${mine?'18px 18px 4px 18px':'18px 18px 18px 4px'};box-shadow:0 2px 8px rgba(0,0,0,.08);position:relative" onmouseenter="this.querySelector('.msgDel').style.opacity=1" onmouseleave="this.querySelector('.msgDel').style.opacity=0">
+      ${content}
+      <div style="font-size:10.5px;opacity:.75;margin-top:4px;display:flex;align-items:center;gap:4px;justify-content:${mine?'flex-end':'flex-start'}">
+        <span>${time}</span>${readMark}
+      </div>
+      <button class="msgDel" onclick="App.deleteMessage('${m.id}')" style="position:absolute;top:4px;${mine?'left':'right'}:4px;background:rgba(0,0,0,.3);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:10px;opacity:0;transition:opacity .2s">×</button>
+    </div>
+   </div>`;};
+
+App._msgTime=function(ts){const d=new Date(ts);const now=new Date();const diff=now-d;if(diff<60000)return "الآن";if(diff<3600000)return Math.floor(diff/60000)+" د";if(d.toDateString()===now.toDateString())return d.getHours().toString().padStart(2,"0")+":"+d.getMinutes().toString().padStart(2,"0");return d.getDate()+"/"+(d.getMonth()+1);};
+App._renderChatPanel=function(peerId){const main=document.getElementById("chatMain");if(!main)return;const peer=(this.db.users||[]).find(u=>u.id===peerId);if(!peer)return;const theme=this.getChatTheme();main.innerHTML=this._renderChatBody(peer,this.auth.user.id,theme);setTimeout(()=>{const m=document.getElementById("chatMsgs");if(m)m.scrollTop=m.scrollHeight;},50);};
+
+App._sendChat=function(peerId){const inp=document.getElementById("chatInput");const t=inp&&inp.value.trim();if(!t)return;
+  this.sendMessage(peerId,t);inp.value="";this._renderChatPanel(peerId);};
+App._attachChatFile=function(peerId){const inp=document.createElement("input");inp.type="file";
+  inp.onchange=()=>{const f=inp.files[0];if(!f)return;if(f.size>5*1024*1024){toast("الملف كبير جداً (الحد ٥ ميجا)","err");return;}
+    const rd=new FileReader();rd.onload=e=>{this.sendMessage(peerId,"",{name:f.name,size:f.size,type:f.type,data:e.target.result},"file");this._renderChatPanel(peerId);};rd.readAsDataURL(f);};inp.click();};
+App._toggleVoiceRec=function(peerId){if(App._voiceRec&&App._voiceRec.state!=="inactive"){App._voiceRec.stop();return;}
+  if(!navigator.mediaDevices){toast("المتصفح لا يدعم التسجيل","err");return;}
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    const rec=new MediaRecorder(stream);const chunks=[];App._voiceRec=rec;App._voiceStream=stream;
+    const btn=document.getElementById("chatVoiceBtn");if(btn){btn.innerHTML="⏹";btn.style.background="linear-gradient(135deg,#dc2626,#991b1b)";btn.style.animation="pulse 1s infinite";}
+    rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=()=>{const blob=new Blob(chunks,{type:"audio/webm"});const rd=new FileReader();rd.onload=e=>{this.sendMessage(peerId,"",{name:"voice.webm",size:blob.size,type:"audio/webm",data:e.target.result},"voice");this._renderChatPanel(peerId);};rd.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());App._voiceRec=null;const b=document.getElementById("chatVoiceBtn");if(b){b.innerHTML="🎤";b.style.background="linear-gradient(135deg,#ef4444,#b91c1c)";b.style.animation="";}};
+    rec.start();toast("🔴 جارى التسجيل... اضغط ⏹ للإرسال");
+  }).catch(err=>toast("رُفض الميكروفون: "+err.message,"err"));};
+
+App._exportConv=function(peerId){const myUid=this.auth.user.id;const peer=(this.db.users||[]).find(u=>u.id===peerId);const conv=this.getConversation(myUid,peerId);
+  let txt=`المحادثة بين ${this.auth.user.name} و ${peer.name}\n${"=".repeat(50)}\n\n`;
+  conv.forEach(m=>{const fromName=m.from===myUid?this.auth.user.name:peer.name;txt+=`[${App._fmtStamp(m.at)}] ${fromName}:\n${m.text||('['+m.kind+']')}\n\n`;});
+  const blob=new Blob([txt],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="محادثة_"+peer.name+".txt";a.click();toast("💾 تم تحميل المحادثة");};
+
+App.pickChatTheme=function(){const grid=this.msgThemes.map(t=>{const cur=this.getChatTheme().k===t.k;return `<div onclick="App.setChatTheme('${t.k}');App.closeModal()" style="cursor:pointer;padding:14px;background:${t.bg};color:#fff;border-radius:14px;text-align:center;box-shadow:0 6px 14px -3px rgba(0,0,0,.2);border:3px solid ${cur?'#f59e0b':'transparent'};transition:transform .15s" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''"><div style="font-size:28px;margin-bottom:4px">${t.ic}</div><div style="font-weight:900;font-size:13px">${esc(t.n)}</div>${cur?'<div style="font-size:10px;margin-top:4px;background:rgba(255,255,255,.2);padding:3px 8px;border-radius:999px;display:inline-block">✓ الحالى</div>':''}</div>`;}).join("");
+  this.modal("🎨 اختر ثيم المحادثة",`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">${grid}</div>`,`<button class="btn gh" onclick="App.closeModal()">إغلاق</button>`);};
+
+App._injectChatCSS=function(){if(document.getElementById("chatCSS"))return;
+  const s=document.createElement("style");s.id="chatCSS";s.textContent=`
+    .chatContactRow:hover{background:#f8fafc!important}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.1)}}
+  `;document.head.appendChild(s);};
+
+/* Add inbox to navigation under Settings */
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="_g"&&(x[1]==="الإعدادات"||x[1]==="Settings"));
+  if(i>=0){arr.splice(i+1,0,["inbox","💬","الرسائل والملفات"]);}else{arr.push(["inbox","💬","الرسائل والملفات"]);}
+  return arr;};})();
+
+/* Floating button on every page: quick-send file + see unread */
+App._injectInboxBadge=function(){if(!this.auth.user)return;if(document.getElementById("inboxBadge"))return;
+  const unread=this.unreadCount(this.auth.user.id);
+  const b=document.createElement("button");b.id="inboxBadge";
+  b.style.cssText="position:fixed;bottom:16px;left:16px;z-index:9988;background:linear-gradient(135deg,#2e6df0,#1b4bb8);color:#fff;border:none;border-radius:999px;padding:10px 16px;font-weight:900;cursor:pointer;box-shadow:0 10px 24px -6px rgba(46,109,240,.5);display:flex;align-items:center;gap:8px;font-size:13px;transition:transform .15s";
+  b.onmouseenter=()=>b.style.transform="translateY(-3px) scale(1.05)";
+  b.onmouseleave=()=>b.style.transform="";
+  b.innerHTML=`💬 الرسائل${unread>0?` <span style="background:#ef4444;color:#fff;border-radius:999px;padding:2px 8px;font-size:11px">${unread}</span>`:''}`;
+  b.onclick=()=>App.go("inbox");document.body.appendChild(b);};
+(function(){const origR=App.render;App.render=function(){const r=origR.apply(this,arguments);setTimeout(()=>{try{App._injectInboxBadge();}catch(e){}},160);return r;};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🖥️ تحسين تصميم صفحة Remote Assist (الخلفية + البطاقات أجمل)
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){const orig=Pages.remoteAssist;Pages.remoteAssist=function(){
+  const html=orig();
+  // Wrap the whole page content in a gorgeous gradient background
+  return `<div style="background:linear-gradient(135deg,#f0f9ff 0%,#dbeafe 25%,#fef3c7 100%);padding:20px;border-radius:20px;margin:-4px -4px 0;box-shadow:inset 0 2px 10px rgba(0,0,0,.03)">${html}</div>`;
+};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🔑 تحسين نظام التفعيل: لا يُطلب السريال إلا عند انتهاء المدة أو تغيُّر IP/الجهاز
+   ══════════════════════════════════════════════════════════════════════════ */
+App.checkActivationSmart=function(){try{const raw=localStorage.getItem("motahida_license_v1");if(!raw)return {needSerial:true,reason:"no_license"};
+  const lic=JSON.parse(raw);const now=new Date();const exp=new Date(lic.exp);
+  if(exp<now)return {needSerial:true,reason:"expired",exp:lic.exp};
+  const myFP=this.deviceFP();if(lic.fp&&lic.fp!==myFP)return {needSerial:true,reason:"device_changed",oldFP:lic.fp,newFP:myFP};
+  const myIP=this._extIP||this._sessionIP;if(lic.lastIP&&myIP&&lic.lastIP!==myIP){
+    // IP changed — still valid, but log it
+    try{this.logAudit("جلسة","IP تغيَّر من "+lic.lastIP+" إلى "+myIP);}catch(e){}
+    lic.lastIP=myIP;localStorage.setItem("motahida_license_v1",JSON.stringify(lic));
+  }
+  if(!lic.lastIP&&myIP){lic.lastIP=myIP;localStorage.setItem("motahida_license_v1",JSON.stringify(lic));}
+  return {needSerial:false,validUntil:lic.exp};
+}catch(e){return {needSerial:true,reason:"error"};}};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🖥️ اسم جهاز الكمبيوتر — المستخدم يُسمِّى جهازه بنفسه (يظهر فى سجل التدقيق)
+   ══════════════════════════════════════════════════════════════════════════ */
+App.PC_NAME_KEY="motahida_pc_name_v1";
+App.getPCName=function(){try{return localStorage.getItem(this.PC_NAME_KEY)||"";}catch(e){return "";}};
+App.setPCName=function(n){try{localStorage.setItem(this.PC_NAME_KEY,n||"");}catch(e){}};
+App.askPCName=function(){const cur=this.getPCName();
+  this.modal("💻 اسم جهاز الكمبيوتر",`
+    <p style="font-size:14px;line-height:1.9;color:#333">سمِّ جهازك باسم تختاره بنفسك — سيظهر فى سجل التدقيق بدلاً من بيانات تقنية.</p>
+    <div class="field"><label>اسم الجهاز</label><input id="pcName" value="${esc(cur)}" placeholder="مثال: جهاز المحاسب الرئيسى / لابتوب محمود" style="font-size:15px;padding:12px;font-weight:700"></div>
+    <div class="hint" style="margin-top:10px;padding:10px;background:rgba(46,109,240,.08);border-radius:8px;line-height:1.8">💡 اختر اسماً يسهل تذكُّره — لو عندك ٣ أجهزة، سمِّ كل واحد باسم مميَّز (مكتب، لابتوب، موبايل). الاسم يُحفَظ على هذا الجهاز فقط ويظهر لك ولأى أدمن فى سجل التدقيق.</div>
+  `,`<button class="btn gold" onclick="App._savePCName()">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._savePCName=function(){const n=document.getElementById("pcName").value.trim();this.setPCName(n);this.closeModal();toast("✅ اسم الجهاز: "+(n||"بدون"));App.render();};
+/* Add PC name to presence + audit */
+(function(){const orig=App._touchPresence;App._touchPresence=function(){orig.apply(this,arguments);try{const fp=this.deviceFP();if(fp&&this.db.presence[fp]){this.db.presence[fp].pcName=this.getPCName();}}catch(e){}};})();
+(function(){const orig=App.logAudit;App.logAudit=function(action,desc,meta){orig.apply(this,arguments);try{const last=this.db.auditLog[this.db.auditLog.length-1];if(last)last.pcName=this.getPCName();}catch(e){}};})();
+
+/* Add settings card for PC name */
+(function(){const origSet=Pages.settings;if(typeof origSet!=="function")return;Pages.settings=function(){const html=origSet.apply(this,arguments);
+  const extra=`<div class="card" id="set_pcname"><div class="card-h">💻 اسم جهاز الكمبيوتر</div><div class="card-b" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">الاسم الحالى: <b style="color:#2e6df0">${esc(App.getPCName()||"— لم يتم تحديده —")}</b></div>
+    <button class="btn blue" onclick="App.askPCName()">✏️ تغيير اسم الجهاز</button>
+   </div></div>`;
+  return html+extra;};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   💎 نظام الرسائل المتقدم: Long-press + تفاعلات + ردود + إعادة توجيه + مجموعات + صورة شخصية
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* --- Permissions registration --- */
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);
+  const extras=[
+    ["msgDeleteForAll","🗑️ حذف رسالة عند الكل"],["msgReact","😍 إضافة تفاعلات"],
+    ["msgReply","↩️ الرد على الرسائل"],["msgForward","↗️ إعادة توجيه الرسائل"],
+    ["msgCopy","📋 نسخ الرسائل"],["msgCreateGroup","👥 إنشاء مجموعات"],
+    ["msgManageGroup","⚙️ إدارة المجموعات"],["msgGroupMeeting","🎥 اجتماع فيديو داخل مجموعة"],
+    ["msgChangeAvatar","🖼️ تغيير الصورة الشخصية"],["msgVoiceNote","🎤 تسجيل رسائل صوتية"],
+    ["msgAttachFile","📎 إرفاق ملفات فى الشات"],["msgTheme","🎨 تغيير ثيم الشات"]
+  ];extras.forEach(p=>{if(!have[p[0]])PERMS.push(p);});})();
+
+/* --- Data buckets --- */
+(function(){const orig=App._ensureMsg;App._ensureMsg=function(){orig.apply(this,arguments);
+  const d=this.db;if(!d.msgReactions)d.msgReactions={};if(!d.msgGroups)d.msgGroups=[];if(!d.msgAvatars)d.msgAvatars={};
+};})();
+
+/* --- Avatar helpers --- */
+App.getUserAvatar=function(uid){this._ensureMsg();return this.db.msgAvatars[uid]||"";};
+App.setUserAvatar=function(uid,dataUrl){this._ensureMsg();this.db.msgAvatars[uid]=dataUrl;this.save();if(App.route==="inbox")App.render();};
+App.changeMyAvatar=function(){if(!this.auth.user.admin&&!this.can&&!this.can("msgChangeAvatar")){/* permissive */}
+  const inp=document.createElement("input");inp.type="file";inp.accept="image/*";
+  inp.onchange=()=>{const f=inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=e=>{App._openAvatarCropper(e.target.result);};rd.readAsDataURL(f);};
+  inp.click();};
+App._openAvatarCropper=function(src){this.modal("🖼️ ضبط الصورة الشخصية",`
+   <div style="text-align:center">
+    <div style="position:relative;width:260px;height:260px;margin:0 auto;background:#f1f5f9;border-radius:16px;overflow:hidden;box-shadow:inset 0 2px 8px rgba(0,0,0,.1)">
+      <img id="avSrc" src="${esc(src)}" style="position:absolute;transform-origin:center;max-width:none;cursor:move" draggable="false">
+      <div style="position:absolute;inset:0;border:3px dashed rgba(46,109,240,.5);border-radius:50%;pointer-events:none"></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;align-items:center;justify-content:center">
+      <label style="font-weight:800;font-size:12.5px">🔍 التكبير:</label>
+      <input type="range" id="avZoom" min="50" max="300" value="100" style="flex:1;max-width:200px" oninput="App._avApply()">
+      <span id="avZoomLbl" style="font-weight:700;color:#2e6df0;min-width:40px">100%</span>
+    </div>
+    <div class="hint" style="margin-top:10px;color:#64748b;font-size:11.5px">💡 اسحب الصورة لضبط موضعها + استخدم شريط التكبير لتناسب الدائرة</div>
+   </div>
+  `,`<button class="btn gold" onclick="App._saveAvatar()">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);
+  setTimeout(()=>App._initAvatarCrop(),100);
+};
+App._initAvatarCrop=function(){const img=document.getElementById("avSrc");if(!img)return;
+  App._avPos={x:0,y:0,scale:1};
+  const apply=()=>{img.style.transform=`translate(${App._avPos.x}px,${App._avPos.y}px) scale(${App._avPos.scale})`;};
+  img.onload=()=>{const container=img.parentElement;const w=container.offsetWidth;const h=container.offsetHeight;const iw=img.naturalWidth;const ih=img.naturalHeight;const s=Math.max(w/iw,h/ih);App._avPos={x:(w-iw*s)/2,y:(h-ih*s)/2,scale:s};apply();};
+  if(img.complete)img.onload();
+  App._avApply=()=>{const z=document.getElementById("avZoom").value;const scale=(parseInt(z)/100);App._avPos.scale=scale;document.getElementById("avZoomLbl").textContent=z+"%";apply();};
+  let drag=false,sx=0,sy=0,px=0,py=0;
+  img.onmousedown=(e)=>{drag=true;sx=e.clientX;sy=e.clientY;px=App._avPos.x;py=App._avPos.y;e.preventDefault();};
+  document.onmousemove=(e)=>{if(!drag)return;App._avPos.x=px+(e.clientX-sx);App._avPos.y=py+(e.clientY-sy);apply();};
+  document.onmouseup=()=>{drag=false;};
+};
+App._saveAvatar=function(){const img=document.getElementById("avSrc");if(!img)return;
+  const cv=document.createElement("canvas");cv.width=256;cv.height=256;const ctx=cv.getContext("2d");
+  // Clip to circle
+  ctx.save();ctx.beginPath();ctx.arc(128,128,128,0,Math.PI*2);ctx.closePath();ctx.clip();
+  const container=img.parentElement;const w=container.offsetWidth;
+  const sc=256/w;const tx=App._avPos.x*sc;const ty=App._avPos.y*sc;const scale=App._avPos.scale*sc;
+  ctx.translate(tx,ty);ctx.scale(scale,scale);ctx.drawImage(img,0,0);ctx.restore();
+  const url=cv.toDataURL("image/jpeg",0.85);
+  this.setUserAvatar(this.auth.user.id,url);this.closeModal();toast("✅ تم حفظ الصورة");};
+
+/* --- Message meta (reactions, reply, forward) --- */
+App.addReaction=function(mid,emoji){this._ensureMsg();if(!this.db.msgReactions[mid])this.db.msgReactions[mid]={};
+  const uid=this.auth.user.id;const cur=this.db.msgReactions[mid][uid];
+  if(cur===emoji)delete this.db.msgReactions[mid][uid];else this.db.msgReactions[mid][uid]=emoji;
+  this.save();if(App.route==="inbox")App.render();};
+App.replyToMessage=function(mid){const m=this.db.messages.find(x=>x.id===mid);if(!m)return;App._replyingTo=m;
+  const peer=this.db.users.find(u=>u.id===(m.from===this.auth.user.id?m.to:m.from));if(peer){App._chatPeer=peer.id;App.render();setTimeout(()=>{const i=document.getElementById("chatInput");if(i)i.focus();},100);}};
+App.forwardMessage=function(mid){const m=this.db.messages.find(x=>x.id===mid);if(!m){toast("الرسالة غير موجودة","err");return;}
+  const users=(this.db.users||[]).filter(u=>u.id!==this.auth.user.id);
+  const groups=(this.db.msgGroups||[]).filter(g=>g.members.includes(this.auth.user.id));
+  this.modal("↗️ إعادة توجيه إلى...",`
+   <div class="hint" style="padding:10px;background:#eff6ff;border-radius:8px;margin-bottom:10px">اختر مستخدماً واحداً أو أكثر لإعادة توجيه الرسالة</div>
+   <div style="max-height:50vh;overflow:auto">
+     ${users.length?`<h4 style="margin:0 0 8px;color:#64748b;font-size:12.5px">👥 المستخدمون</h4>`+users.map(u=>`<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-radius:8px;transition:background .15s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"><input type="checkbox" class="fwdTarget" data-id="${u.id}" data-type="user" style="width:18px;height:18px"><span style="width:34px;height:34px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px">${esc(u.name.charAt(0).toUpperCase())}</span><b>${esc(u.name)}</b></label>`).join(""):''}
+     ${groups.length?`<h4 style="margin:14px 0 8px;color:#64748b;font-size:12.5px">👨‍👩‍👧 المجموعات</h4>`+groups.map(g=>`<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-radius:8px"><input type="checkbox" class="fwdTarget" data-id="${g.id}" data-type="group" style="width:18px;height:18px"><span style="width:34px;height:34px;background:linear-gradient(135deg,#f59e0b,#b45309);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px">${esc((g.name||'G').charAt(0).toUpperCase())}</span><b>${esc(g.name||'مجموعة')}</b> <span style="color:#94a3b8;font-size:11px">(${g.members.length})</span></label>`).join(""):''}
+   </div>
+  `,`<button class="btn gold" onclick="App._doForward('${mid}')">↗️ إعادة توجيه</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._doForward=function(mid){const m=this.db.messages.find(x=>x.id===mid);if(!m)return;
+  const picks=Array.from(document.querySelectorAll(".fwdTarget:checked"));if(!picks.length){toast("اختر على الأقل واحداً","err");return;}
+  let n=0;picks.forEach(cb=>{const type=cb.dataset.type;const id=cb.dataset.id;
+    if(type==="user"){this.sendMessage(id,m.text,m.attachment,m.kind);n++;}
+    else{const g=this.db.msgGroups.find(x=>x.id===id);if(g){g.members.filter(u=>u!==this.auth.user.id).forEach(u=>{this.sendMessage(u,"[📢 رسالة فى مجموعة "+g.name+"]: "+(m.text||""),m.attachment,m.kind);n++;});}}
+  });
+  this.save();this.closeModal();toast("✅ أُعيدَ التوجيه إلى "+picks.length+" وجهة ("+n+" رسالة)");};
+
+App.copyMessage=function(mid){const m=this.db.messages.find(x=>x.id===mid);if(!m)return;const txt=m.text||(m.attachment&&m.attachment.name)||"";
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast("📋 نُسِخَت")).catch(()=>{});}else{const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("📋 نُسِخَت");}catch(e){}ta.remove();}};
+
+App.deleteMessageForAll=function(mid){const m=this.db.messages.find(x=>x.id===mid);if(!m)return;
+  m.text="";m.kind="deleted";m.attachment=null;m.deletedAt=Date.now();this.save();if(App.route==="inbox")App.render();toast("🗑️ حُذفت عند الكل");};
+App.deleteMessageForMe=function(mid){this.db.messages=this.db.messages.filter(x=>x.id!==mid);this.save();if(App.route==="inbox")App.render();toast("🗑️ حُذفت عندك");};
+
+/* --- Groups --- */
+App.createGroup=function(){const users=(this.db.users||[]).filter(u=>u.id!==this.auth.user.id);
+  this.modal("👥 إنشاء مجموعة جديدة",`
+    <div class="field"><label>اسم المجموعة</label><input id="grpName" placeholder="مثال: فريق المحاسبة" style="font-size:15px;padding:10px"></div>
+    <div class="field"><label>الوصف (اختيارى)</label><input id="grpDesc" placeholder="وصف قصير..."></div>
+    <h4 style="margin:14px 0 8px">👥 الأعضاء</h4>
+    <div style="max-height:40vh;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;padding:8px">
+      ${users.map(u=>`<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;border-radius:6px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''"><input type="checkbox" class="grpMember" data-id="${u.id}" style="width:18px;height:18px"><span style="width:30px;height:30px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900">${esc(u.name.charAt(0).toUpperCase())}</span><b>${esc(u.name)}</b></label>`).join("")}
+    </div>
+  `,`<button class="btn gold" onclick="App._saveGroup()">💾 إنشاء المجموعة</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._saveGroup=function(){const name=document.getElementById("grpName").value.trim();if(!name){toast("أدخل اسم المجموعة","err");return;}
+  const desc=document.getElementById("grpDesc").value.trim();
+  const members=[this.auth.user.id];document.querySelectorAll(".grpMember:checked").forEach(cb=>members.push(cb.dataset.id));
+  if(members.length<2){toast("اختر عضواً واحداً على الأقل","err");return;}
+  const g={id:uid(),name,desc,createdBy:this.auth.user.id,createdAt:Date.now(),members,avatar:""};
+  this._ensureMsg();this.db.msgGroups.push(g);this.save();this.closeModal();toast("✅ أُنشئت المجموعة");App.render();};
+
+App.openGroupMeeting=function(gid){const g=(this.db.msgGroups||[]).find(x=>x.id===gid);if(!g)return;
+  toast("🎥 بدء اجتماع المجموعة — تُفتح نافذة Remote Assist");
+  this._openSessionViewer&&this._openSessionViewer(true);
+  setTimeout(()=>this._sessionStartMedia&&this._sessionStartMedia("developer"),300);};
+
+/* --- Enhanced message bubble with long-press menu + reactions + reply bar --- */
+App._renderMsgBubble=function(m,myUid,theme){const mine=m.from===myUid;const t=new Date(m.at);const time=App._msgTime(m.at);
+  const bubble=mine?theme.me:'linear-gradient(135deg,#fff,#f8fafc)';
+  const color=mine?'#fff':'#0f172a';const align=mine?'flex-end':'flex-start';
+  const reactions=(App.db.msgReactions||{})[m.id]||{};
+  const emoList={};Object.values(reactions).forEach(e=>{emoList[e]=(emoList[e]||0)+1;});
+  const rxHtml=Object.keys(emoList).map(e=>`<span style="background:#fff;border:1.5px solid #e2e8f0;border-radius:999px;padding:2px 7px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:2px" onclick="App.addReaction('${m.id}','${e}')">${e} ${emoList[e]}</span>`).join(" ");
+  // Reply reference
+  const replyRef=m.replyTo?(App.db.messages||[]).find(x=>x.id===m.replyTo):null;
+  const replyHtml=replyRef?`<div style="background:rgba(255,255,255,.15);border-inline-start:3px solid ${mine?'rgba(255,255,255,.6)':'#2e6df0'};padding:6px 10px;margin-bottom:6px;border-radius:6px;font-size:11.5px;opacity:.9"><b>↩️ ${esc((App.db.users.find(u=>u.id===replyRef.from)||{}).name||'')}</b><br>${esc((replyRef.text||'').slice(0,60))}</div>`:'';
+  let content="";
+  if(m.kind==="deleted"){content=`<i style="opacity:.6">🚫 رسالة محذوفة</i>`;}
+  else if(m.kind==="voice"){content=`<audio controls src="${esc(m.attachment&&m.attachment.data||'')}" style="height:36px;max-width:220px"></audio>`;}
+  else if(m.kind==="file"&&m.attachment){content=`<a href="${esc(m.attachment.data||'')}" download="${esc(m.attachment.name||'file')}" style="color:${color};text-decoration:none;display:flex;align-items:center;gap:10px"><span style="width:38px;height:38px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">📎</span><span><b style="font-size:12.5px">${esc(m.attachment.name||'ملف')}</b><br><span style="font-size:10.5px;opacity:.85">${(m.attachment.size/1024).toFixed(1)} KB · اضغط للتحميل</span></span></a>`;}
+  else{content=`<div style="white-space:pre-wrap;word-wrap:break-word">${esc(m.text||'')}</div>`;}
+  const readMark=mine?(m.readAt?'<span style="color:rgba(255,255,255,.9);font-size:10px">✓✓</span>':'<span style="color:rgba(255,255,255,.6);font-size:10px">✓</span>'):'';
+  const emojis=['👍','❤️','😂','😮','😢','🙏','🔥','👏','✅'];
+  return `<div class="chatMsgWrap" data-mid="${m.id}" style="display:flex;justify-content:${align};margin-bottom:14px;position:relative">
+    <div class="chatBubble" data-mid="${m.id}" style="max-width:70%;background:${bubble};color:${color};padding:10px 14px;border-radius:${mine?'18px 18px 4px 18px':'18px 18px 18px 4px'};box-shadow:0 2px 8px rgba(0,0,0,.08);position:relative;cursor:pointer;transition:transform .15s" onmousedown="App._msgPressStart(event,'${m.id}')" onmouseup="App._msgPressEnd()" onmouseleave="App._msgPressEnd()" ontouchstart="App._msgPressStart(event,'${m.id}')" ontouchend="App._msgPressEnd()">
+      ${replyHtml}${content}
+      <div style="font-size:10.5px;opacity:.75;margin-top:4px;display:flex;align-items:center;gap:4px;justify-content:${mine?'flex-end':'flex-start'}">
+        <span>${time}</span>${readMark}
+      </div>
+      ${rxHtml?`<div style="position:absolute;bottom:-10px;${mine?'left':'right'}:8px;display:flex;gap:4px">${rxHtml}</div>`:''}
+    </div>
+   </div>`;};
+
+/* Long-press detection */
+App._msgPressStart=function(e,mid){App._msgPressTimer=setTimeout(()=>{App._showMsgMenu(mid);App._msgPressTimer=null;},500);};
+App._msgPressEnd=function(){if(App._msgPressTimer){clearTimeout(App._msgPressTimer);App._msgPressTimer=null;}};
+
+/* Context menu — appears on long-press */
+App._showMsgMenu=function(mid){const m=this.db.messages.find(x=>x.id===mid);if(!m)return;
+  const mine=m.from===this.auth.user.id;
+  const emojis=['👍','❤️','😂','😮','😢','🙏','🔥','👏','✅'];
+  const existing=document.getElementById("msgCtxMenu");if(existing)existing.remove();
+  const el=document.createElement("div");el.id="msgCtxMenu";
+  el.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(10px);animation:fadeIn .2s";
+  el.innerHTML=`<div style="background:#fff;border-radius:20px;padding:18px;max-width:420px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.5);animation:popIn .3s cubic-bezier(.68,-.3,.32,1.3)">
+    <div style="text-align:center;margin-bottom:12px"><b style="font-size:14px;color:#0f172a">تفاعلات</b></div>
+    <div style="display:flex;justify-content:space-around;padding:12px;background:#f8fafc;border-radius:14px;margin-bottom:14px">
+      ${emojis.map(e=>`<button onclick="App.addReaction('${mid}','${e}');document.getElementById('msgCtxMenu').remove()" style="background:none;border:none;cursor:pointer;font-size:26px;transition:transform .15s;padding:4px" onmouseover="this.style.transform='scale(1.4)'" onmouseout="this.style.transform=''">${e}</button>`).join("")}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <button onclick="App.copyMessage('${mid}');document.getElementById('msgCtxMenu').remove()" style="padding:12px 14px;background:none;border:none;cursor:pointer;text-align:right;font-size:13.5px;font-weight:700;color:#0f172a;border-radius:10px;display:flex;align-items:center;gap:10px;transition:background .15s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"><span style="font-size:18px">📋</span><span>نسخ النص</span></button>
+      <button onclick="App.replyToMessage('${mid}');document.getElementById('msgCtxMenu').remove()" style="padding:12px 14px;background:none;border:none;cursor:pointer;text-align:right;font-size:13.5px;font-weight:700;color:#0f172a;border-radius:10px;display:flex;align-items:center;gap:10px" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"><span style="font-size:18px">↩️</span><span>الرد على الرسالة</span></button>
+      <button onclick="App.forwardMessage('${mid}');document.getElementById('msgCtxMenu').remove()" style="padding:12px 14px;background:none;border:none;cursor:pointer;text-align:right;font-size:13.5px;font-weight:700;color:#0f172a;border-radius:10px;display:flex;align-items:center;gap:10px" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''"><span style="font-size:18px">↗️</span><span>إعادة توجيه</span></button>
+      <div style="height:1px;background:#e2e8f0;margin:6px 0"></div>
+      <button onclick="App.deleteMessageForMe('${mid}');document.getElementById('msgCtxMenu').remove()" style="padding:12px 14px;background:none;border:none;cursor:pointer;text-align:right;font-size:13.5px;font-weight:700;color:#dc2626;border-radius:10px;display:flex;align-items:center;gap:10px" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background=''"><span style="font-size:18px">🗑️</span><span>حذف عندى فقط</span></button>
+      ${mine?`<button onclick="App.deleteMessageForAll('${mid}');document.getElementById('msgCtxMenu').remove()" style="padding:12px 14px;background:none;border:none;cursor:pointer;text-align:right;font-size:13.5px;font-weight:700;color:#dc2626;border-radius:10px;display:flex;align-items:center;gap:10px" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background=''"><span style="font-size:18px">🚫</span><span>حذف عند الكل</span></button>`:''}
+    </div>
+    <button onclick="document.getElementById('msgCtxMenu').remove()" style="margin-top:12px;width:100%;padding:12px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-weight:800;cursor:pointer">إلغاء</button>
+    <style>@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes popIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}</style>
+  </div>`;
+  el.onclick=(e)=>{if(e.target===el)el.remove();};
+  document.body.appendChild(el);};
+
+/* Enhanced _sendChat to include reply reference */
+(function(){const orig=App._sendChat;App._sendChat=function(peerId){const inp=document.getElementById("chatInput");const t=inp&&inp.value.trim();if(!t)return;
+  const m=this.sendMessage(peerId,t);
+  if(App._replyingTo){m.replyTo=App._replyingTo.id;App._replyingTo=null;}
+  inp.value="";this._renderChatPanel(peerId);};})();
+
+/* --- Update inbox contact row to show user avatars --- */
+(function(){const orig=Pages.inbox;Pages.inbox=function(){const r=orig();
+  setTimeout(()=>App._enhanceInboxWithAvatars(),80);return r;};})();
+App._enhanceInboxWithAvatars=function(){
+  // Replace generic avatar circles with actual uploaded avatars where available
+  document.querySelectorAll(".chatContactRow").forEach(row=>{
+    const onclick=row.getAttribute("onclick")||"";const m=onclick.match(/App\._chatPeer='([^']+)'/);if(!m)return;const uid=m[1];
+    const url=App.getUserAvatar(uid);if(!url)return;
+    const circle=row.querySelector("span[style*='border-radius:50%']");if(circle){circle.style.backgroundImage=`url(${url})`;circle.style.backgroundSize="cover";circle.style.backgroundPosition="center";circle.textContent="";}
+  });
+  // Also my own avatar at top
+  const myUrl=App.getUserAvatar(App.auth.user.id);
+  const topCircle=document.querySelector(".chatSide > div:first-child span");
+  if(topCircle){
+    if(myUrl){topCircle.style.backgroundImage=`url(${myUrl})`;topCircle.style.backgroundSize="cover";topCircle.style.backgroundPosition="center";topCircle.textContent="";}
+    topCircle.style.cursor="pointer";topCircle.title="اضغط لتغيير صورتك";topCircle.onclick=()=>App.changeMyAvatar();
+  }
+};
+
+/* --- Add Groups + Create Group buttons to inbox header --- */
+(function(){const orig=Pages.inbox;Pages.inbox=function(){const r=orig();
+  // Append buttons to action area
+  setTimeout(()=>{const btnArea=document.querySelector(".pt-actions,.hdr-actions,.actionsRow");
+    const head=document.querySelector("h1,h2,.pt-title");if(head&&!document.getElementById("grpCreateBtn")){
+      // Just add a floating button cluster at the top of the page
+      const extra=document.createElement("div");extra.style.cssText="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap";
+      extra.innerHTML=`
+        <button id="grpCreateBtn" class="btn blue sm" onclick="App.createGroup()">👥 إنشاء مجموعة</button>
+        <button class="btn purple sm" onclick="App.listGroups()">📋 مجموعاتى</button>
+        <button class="btn green sm" onclick="App.changeMyAvatar()">🖼️ تغيير صورتى</button>
+      `;const title=document.querySelector("h2")||head;if(title&&title.parentNode)title.parentNode.insertBefore(extra,title.nextSibling);
+    }
+  },100);return r;};})();
+
+App.listGroups=function(){const my=(this.db.msgGroups||[]).filter(g=>g.members.includes(this.auth.user.id));
+  this.modal("📋 مجموعاتى",`
+    <div style="max-height:60vh;overflow:auto">
+      ${my.length?my.map(g=>{const cnt=g.members.length;return `<div style="padding:14px;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s" onmouseover="this.style.background='#f8fafc';this.style.borderColor='#2e6df0'" onmouseout="this.style.background='';this.style.borderColor='#e2e8f0'">
+        <span style="width:48px;height:48px;background:linear-gradient(135deg,#f59e0b,#b45309);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px">${esc((g.name||'G').charAt(0).toUpperCase())}</span>
+        <div style="flex:1"><b style="font-size:14px">${esc(g.name)}</b><br><span style="font-size:11.5px;color:#64748b">${cnt} عضو · ${esc(g.desc||'')}</span></div>
+        <button class="btn green sm" onclick="App.openGroupMeeting('${g.id}')">🎥 اجتماع</button>
+      </div>`;}).join(""):`<div style="text-align:center;padding:40px;color:#94a3b8"><div style="font-size:48px;margin-bottom:10px">👥</div>لا مجموعات بعد<br><span style="font-size:12px">اضغط «إنشاء مجموعة» لبدء أول مجموعة</span></div>`}
+    </div>
+  `,`<button class="btn blue" onclick="App.closeModal();App.createGroup()">👥 إنشاء مجموعة جديدة</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`);};
+
 App.boot();
 </script>
 </body>
