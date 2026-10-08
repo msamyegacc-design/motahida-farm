@@ -16937,6 +16937,52 @@ App._uValCompute=function(){const m=($("#uValMode")||{}).value||"lifetime";if(m=
 
 /* نهاية حزمة المتحدة v5 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v6 — «المتحدة» تلقائى لكل شركة + إيراد كرتون عربى محلى      ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* اسم إيراد المتحدة فى قائمة الدخل */
+App.CARTON_LOCAL_REV="إيرادات كرتون عربى محلى";
+
+/* تأكيد وجود عميل «المتحدة» الفرعى تحت كل شركة (يُنشأ تلقائياً) */
+App.cartonEnsureUnited=function(companyId){let sub=this.cartonSubsOf(companyId).find(s=>s.data&&s.data.unitedSource);
+  if(!sub){sub=this.addAccount({node:"customer",name:"المتحدة",cat:"كرتون عربى",data:{carton:true,companyId,unitedSource:true,notes:"تجميع استلامات الملك والشركاء الخاصة بهذا العميل"}});this.save();}
+  return sub;};
+App.cartonEnsureAllUnited=function(){this._ensureCarton();this.cartonCompanies().forEach(c=>this.cartonEnsureUnited(c.id));};
+
+/* المتحدة أولاً فى ترتيب العملاء الفرعيين */
+(function(){const orig=App.cartonSubsOf.bind(App);App.cartonSubsOf=function(companyId){const arr=orig(companyId);return arr.slice().sort((a,b)=>{const au=a.data&&a.data.unitedSource?0:1;const bu=b.data&&b.data.unitedSource?0:1;return au-bu;});};})();
+
+/* إيراد المتحدة = «إيرادات كرتون عربى محلى» */
+App._cartonRepost=function(e){
+  if(e.postId){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);e.postId=null;}
+  const amt=Number(e.amount)||0;const sub=this.acct(e.custId);if(!sub)return;
+  const companyId=(sub.data&&sub.data.companyId)||e.custId;const company=this.acct(companyId)||sub;
+  if(e.varId==='disc'){if(!amt)return;const dc=this.revAcct("خصم كرتون عربى");
+    const p=this.post({date:e.date,desc:"خصم كرتون عربى — "+sub.name,debit:dc.id,credit:company.id,amount:amt,kind:"sale",meta:{carton:1,cartonEntry:e.id,disc:1,subId:e.custId,companyId}});
+    e.postId=p.id;return;}
+  if(!amt)return;
+  const united=!!(sub.data&&sub.data.unitedSource);
+  const locId=(sub.data&&sub.data.locId)||(company.data&&company.data.locId)||null;const loc=locId?this.locById(locId):null;const cropId=loc?((this.mainCrop(loc)||{}).id||null):null;
+  const vn=this.cartonVarName(e.varId);
+  let creditId,kind;
+  if(united){creditId=this.revAcct(this.CARTON_LOCAL_REV).id;kind="sale";}
+  else{creditId=sub.id;kind="supply";}
+  const p=this.post({date:e.date,desc:"كرتون عربى — "+sub.name+" / "+vn+" ("+numf(e.qty)+" × "+money(e.price)+")",debit:company.id,credit:creditId,amount:amt,kind,cropId,locId,meta:{carton:1,cartonEntry:e.id,varId:e.varId,subId:e.custId,companyId,united:united?1:0}});
+  e.postId=p.id;};
+
+/* إنشاء المتحدة تلقائياً عند إضافة شركة (تغليف زر الحفظ) + ترحيل مرة واحدة */
+(function(){const orig=App.cartonCompanyAdd;if(typeof orig!=="function")return;App.cartonCompanyAdd=function(id){orig.apply(this,arguments);
+  const btn=document.getElementById("coS");if(btn){const prev=btn.onclick;btn.onclick=()=>{const before=App.cartonCompanies().map(c=>c.id);if(prev)prev();setTimeout(()=>{try{App.cartonCompanies().forEach(c=>{if(before.indexOf(c.id)<0)App.cartonEnsureUnited(c.id);});App.cartonEnsureAllUnited();}catch(e){}},60);};}};})();
+
+/* تأكيد المتحدة عند فتح قائمة الشركات أو صفحة الشركة */
+(function(){["cartonClients","cartonCompany"].forEach(pg=>{const orig=Pages[pg];if(typeof orig!=="function")return;Pages[pg]=function(){try{App.cartonEnsureAllUnited();}catch(e){}return orig.apply(this,arguments);};});})();
+
+/* ترحيل: تأكيد المتحدة لكل الشركات + إعادة ترحيل القيود على الإيراد الجديد */
+(function(){try{if(App.db&&App.db._cartonModelV!==3){App._ensureCarton();App.cartonEnsureAllUnited&&App.cartonEnsureAllUnited();App.cartonRepostAll&&App.cartonRepostAll();App.db._cartonModelV=3;App.save&&App.save();}}catch(e){}})();
+
+/* نهاية حزمة المتحدة v6 */
+
 App.boot();
 </script>
 </body>
