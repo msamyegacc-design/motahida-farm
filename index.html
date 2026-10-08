@@ -15526,6 +15526,705 @@ App.listGroups=function(){const my=(this.db.msgGroups||[]).filter(g=>g.members.i
     </div>
   `,`<button class="btn blue" onclick="App.closeModal();App.createGroup()">👥 إنشاء مجموعة جديدة</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`);};
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة تطويرات المتحدة v2 — واجهة الشات + عهدة المصانع + الحوش          ║
+   ║     + تقارير الإنتاجية + العمليات المباشرة على التكاليف                    ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   0) تحسين ارتفاع القوائم العلوية + خط أوضح على سطر واحد
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){if(document.getElementById("mt2MenuCSS"))return;const s=document.createElement("style");s.id="mt2MenuCSS";
+  s.textContent=`
+  .topnav .drop a,.topnav .subdrop a{padding:11px 14px!important;font-size:13.8px!important;font-weight:700!important;line-height:1.25!important;letter-spacing:.2px;white-space:nowrap!important;border-radius:10px!important;min-height:42px}
+  .topnav .drop a .i,.topnav .subdrop a .i{font-size:16px!important}
+  .topnav .drop{min-width:262px!important;padding:8px!important}
+  .topnav .subdrop{min-width:248px!important;padding:8px!important}
+  .topnav .drop a:hover,.topnav .subdrop a:hover{transform:translateX(-2px)}
+  .nav a{padding:11px 18px!important;font-size:14px!important;min-height:42px}
+  `;document.head.appendChild(s);})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1) حالة الاتصال (أونلاين) + آخر ظهور + إشعار عند اتصال أى مستخدم
+   ══════════════════════════════════════════════════════════════════════════ */
+App._userOnline=function(uid){if(!uid)return false;const now=Date.now();
+  return Object.values(this.db.presence||{}).some(p=>p&&p.uid===uid&&(now-(p.at||0))<this.PRESENCE_WINDOW);};
+App._lastSeenText=function(uid){
+  if(this._userOnline(uid))return "🟢 متصل الآن";
+  const t=this._userLastSeen?this._userLastSeen(uid):0;
+  if(!t)return "غير متصل";
+  const diff=Date.now()-t;const mins=Math.floor(diff/60000);
+  if(mins<1)return "نشط منذ لحظات";
+  if(mins<60)return "آخر ظهور منذ "+mins+" دقيقة";
+  const hrs=Math.floor(mins/60);if(hrs<24)return "آخر ظهور منذ "+hrs+" ساعة";
+  const days=Math.floor(hrs/24);if(days<30)return "آخر ظهور منذ "+days+" يوم";
+  return "آخر ظهور "+fmtDate(new Date(t));};
+
+/* إشعار محلّى (غير مخزَّن) عند اتصال أى مستخدم جديد — للأدمن أو لمن له صلاحية notifyOnConnect */
+App._knownOnline=null;
+App._watchConnections=function(){try{
+  const u=this.auth&&this.auth.user;if(!u)return;
+  const allowed=u.admin||(u.perms&&u.perms.notifyOnConnect);
+  const now=Date.now();const cur={};
+  Object.values(this.db.presence||{}).forEach(p=>{if(p&&p.uid&&(now-(p.at||0))<this.PRESENCE_WINDOW)cur[p.uid]=p;});
+  if(this._knownOnline===null){this._knownOnline=cur;return;}// أول مرة: التقاط اللحظة فقط
+  if(allowed){Object.keys(cur).forEach(id=>{
+    if(id!==u.id&&!this._knownOnline[id]){
+      const nm=(this.db.users||[]).find(x=>x.id===id);const name=cur[id].name||(nm&&nm.name)||"مستخدم";
+      try{toast("🟢 "+name+" اتصل بالنظام الآن","ok");}catch(e){}
+      try{if(this.soundCfg&&this.soundCfg().on&&this._playNotifSound)this._playNotifSound();}catch(e){}
+    }});}
+  this._knownOnline=cur;
+}catch(e){}};
+(function(){const origR=App.render;App.render=function(){const r=origR.apply(this,arguments);
+  setTimeout(()=>{try{App._watchConnections();}catch(e){}},200);return r;};})();
+/* فحص دورى كل ٢٥ ثانية حتى بدون تنقّل */
+setInterval(()=>{try{if(App.auth&&App.auth.user){App._watchConnections();if(App.route==="inbox")App._refreshChatPresence();}}catch(e){}},25000);
+
+/* تسجيل صلاحية الإشعار عند الاتصال */
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);
+  if(!have.notifyOnConnect)PERMS.push(["notifyOnConnect","🟢 إشعار عند اتصال أى مستخدم بالنظام"]);})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2) إعادة بناء صفحة الرسائل — إطار فخم + فقاعات آيفون + أزرار بجوار الثيم
+      + حالة الاتصال + تغيير/حذف الصورة بالضغط على الصورة + حفظ تلقائى
+   ══════════════════════════════════════════════════════════════════════════ */
+App._injectChatCSS=function(){if(document.getElementById("chatCSS2"))return;
+  const s=document.createElement("style");s.id="chatCSS2";s.textContent=`
+    .chatContactRow:hover{background:#eef4ff!important}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.1)}}
+    @keyframes onlinePulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 7px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+    @keyframes bubbleIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
+    .chOnlineDot{position:absolute;bottom:-1px;inset-inline-end:-1px;width:13px;height:13px;border-radius:50%;background:#22c55e;border:2.5px solid #fff;box-shadow:0 0 0 0 rgba(34,197,94,.6);animation:onlinePulse 1.8s infinite}
+    .chAvatarWrap{position:relative;flex-shrink:0}
+    .iosBubble{animation:bubbleIn .22s ease both;position:relative}
+    .iosBubble .tail{position:absolute;bottom:0;width:14px;height:18px;overflow:hidden}
+    .iosBubble.mine .tail{inset-inline-end:-7px}
+    .iosBubble.theirs .tail{inset-inline-start:-7px}
+    .chatFrame{border-radius:22px;overflow:hidden;box-shadow:0 26px 60px -14px rgba(15,32,56,.32),0 4px 14px rgba(15,32,56,.08)}
+    .chBtnRow .btn{box-shadow:0 4px 12px -5px rgba(0,0,0,.3)}
+    .chAvatarEditBadge{position:absolute;bottom:-2px;inset-inline-start:-2px;width:20px;height:20px;border-radius:50%;background:#2e6df0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid #fff;cursor:pointer}
+  `;document.head.appendChild(s);};
+
+/* قائمة الصورة: تغيير / حذف — بالضغط على الصورة نفسها */
+App.avatarMenu=function(){const el=document.getElementById("chatAvatarMenu");if(el){el.remove();return;}
+  const has=!!this.getUserAvatar(this.auth.user.id);
+  const m=document.createElement("div");m.id="chatAvatarMenu";
+  m.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)";
+  m.innerHTML=`<div style="background:#fff;border-radius:22px;padding:22px;width:320px;max-width:92vw;box-shadow:0 30px 80px rgba(0,0,0,.5);text-align:center">
+    <div style="margin:0 auto 14px;width:120px;height:120px;border-radius:50%;overflow:hidden;background:linear-gradient(135deg,#2e6df0,#1747a8);display:flex;align-items:center;justify-content:center;font-size:48px;color:#fff;font-weight:900;box-shadow:0 10px 26px -6px rgba(46,109,240,.5)">${has?`<img src="${esc(this.getUserAvatar(this.auth.user.id))}" style="width:100%;height:100%;object-fit:cover">`:esc((this.auth.user.name||'?').charAt(0).toUpperCase())}</div>
+    <div style="font-weight:900;font-size:16px;margin-bottom:4px">${esc(this.auth.user.name)}</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:16px">صورتك الشخصية فى المحادثات</div>
+    <button class="btn blue" style="width:100%;margin-bottom:8px;justify-content:center" onclick="document.getElementById('chatAvatarMenu').remove();App.changeMyAvatar()">📷 ${has?'تغيير الصورة':'رفع صورة'}</button>
+    ${has?`<button class="btn danger" style="width:100%;margin-bottom:8px;justify-content:center" onclick="App.deleteMyAvatar()">🗑️ حذف الصورة</button>`:''}
+    <button class="btn gh" style="width:100%;justify-content:center" onclick="document.getElementById('chatAvatarMenu').remove()">إلغاء</button>
+   </div>`;
+  m.onclick=(e)=>{if(e.target===m)m.remove();};
+  document.body.appendChild(m);};
+App.deleteMyAvatar=function(){this._ensureMsg();delete this.db.msgAvatars[this.auth.user.id];this.save();
+  const el=document.getElementById("chatAvatarMenu");if(el)el.remove();toast("🗑️ حُذفت الصورة");if(this.route==="inbox")this.render();};
+
+/* إعادة بناء صفحة الرسائل بالكامل */
+Pages.inbox=function(){App._ensureMsg();App._injectChatCSS();
+  const myUid=App.auth.user.id;const users=(App.db.users||[]).filter(u=>u.id!==myUid);
+  const theme=App.getChatTheme();
+  if(!App._chatPeer&&users[0])App._chatPeer=users[0].id;
+  const peer=users.find(u=>u.id===App._chatPeer);
+  const myAv=App.getUserAvatar(myUid);
+  const onlineCount=users.filter(u=>App._userOnline(u.id)).length;
+  // أزرار الإجراءات بجوار زر الثيم فى رأس الصفحة
+  const actions=`
+    <button class="btn blue sm" onclick="App.createGroup()">👥 إنشاء مجموعة</button>
+    <button class="btn purple sm" onclick="App.listGroups()">📋 مجموعاتى</button>
+    <button class="btn gold sm" onclick="App.pickChatTheme()">🎨 ثيم الشات</button>`;
+  return head("💬","الرسائل والملفات","محادثات نصية وصوتية وملفات بتصميم آيفون — "+onlineCount+" متصل الآن · المحادثات تُحفظ تلقائياً",actions)+`
+   <div class="chatApp chatFrame" style="display:grid;grid-template-columns:320px 1fr;gap:0;height:70vh;background:#f4f7fb;border:1px solid #dbe4ee">
+    <div class="chatSide" style="background:#fff;border-inline-end:1px solid #e2e8f0;overflow-y:auto">
+     <div style="padding:16px;background:${theme.bg};color:#fff;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:2">
+       <div class="chAvatarWrap" onclick="App.avatarMenu()" style="cursor:pointer" title="اضغط لتغيير أو حذف صورتك">
+         <span style="width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:19px;color:#fff;background:${myAv?`#fff url(${myAv}) center/cover`:'rgba(255,255,255,.22)'};box-shadow:0 4px 10px -2px rgba(0,0,0,.25);overflow:hidden">${myAv?'':esc((App.auth.user.name||'?').charAt(0).toUpperCase())}</span>
+         <span class="chAvatarEditBadge">✎</span>
+       </div>
+       <div style="flex:1;min-width:0"><div style="font-weight:900;font-size:14.5px">${esc(App.auth.user.name)}</div><div style="font-size:11px;opacity:.92">${theme.ic} ${esc(theme.n)} · ${esc(App.auth.user.admin?'🛡️ أدمن':'👤 مستخدم')}</div></div>
+     </div>
+     <div style="padding:10px 14px;font-size:11.5px;color:#64748b;font-weight:800;letter-spacing:.3px">💬 المحادثات</div>
+     ${users.map(u=>{const conv=App.getConversation(myUid,u.id);const last=conv[conv.length-1];const unread=App.unreadCount(myUid,u.id);const active=u.id===App._chatPeer;const t2=App.msgThemes[(u.name.charCodeAt(0)||0)%App.msgThemes.length];const av=App.getUserAvatar(u.id);const on=App._userOnline(u.id);
+       return `<div class="chatContactRow" onclick="App._chatPeer='${u.id}';App.markRead('${myUid}','${u.id}');App.render()" style="padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f1f5f9;background:${active?'linear-gradient(90deg,#eaf1ff,transparent)':'transparent'};border-inline-start:3px solid ${active?'#2e6df0':'transparent'};transition:all .18s">
+         <div class="chAvatarWrap">
+           <span style="width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;color:#fff;background:${av?`#fff url(${av}) center/cover`:t2.bg};box-shadow:0 4px 10px -2px rgba(0,0,0,.15);overflow:hidden">${av?'':esc(u.name.charAt(0).toUpperCase())}</span>
+           <span class="chOnlineDot" data-uid="${u.id}" style="display:${on?'block':'none'}"></span>
+         </div>
+         <div style="flex:1;min-width:0">
+           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:13.5px">${esc(u.name)}</b><span style="font-size:10.5px;color:#94a3b8">${last?App._msgTime(last.at):''}</span></div>
+           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><span class="chLastSeen" data-uid="${u.id}" style="font-size:11px;color:${on?'#16a34a':'#94a3b8'};font-weight:${on?'800':'600'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px">${App._lastSeenText(u.id)}</span>${unread>0?`<span style="background:#ef4444;color:#fff;border-radius:999px;padding:2px 7px;font-size:10px;font-weight:900">${unread}</span>`:''}</div>
+         </div>
+       </div>`;}).join("")||`<div style="padding:20px;text-align:center;color:#94a3b8">لا مستخدمين آخرين</div>`}
+    </div>
+    <div class="chatMain" id="chatMain" style="display:flex;flex-direction:column;background:#eef2f8">
+     ${peer?App._renderChatBody(peer,myUid,theme):'<div style="flex:1;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-direction:column;gap:12px"><div style="font-size:64px">💬</div><div style="font-size:14px">اختر مستخدماً لبدء محادثة</div></div>'}
+    </div>
+   </div>`;};
+Pages.inbox.meta={title:"الرسائل والملفات",crumb:"الإعدادات"};
+
+/* جسم المحادثة — رأس فخم بثيم + حالة اتصال + خلفية آيفون */
+App._renderChatBody=function(peer,myUid,theme){const conv=App.getConversation(myUid,peer.id);
+  const av=App.getUserAvatar(peer.id);const on=App._userOnline(peer.id);
+  const status=App._lastSeenText(peer.id);
+  return `
+   <div style="padding:14px 18px;background:${theme.bg};color:#fff;display:flex;align-items:center;gap:13px;box-shadow:0 3px 12px rgba(0,0,0,.14);z-index:2">
+     <div class="chAvatarWrap">
+       <span style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#fff;background:${av?`#fff url(${av}) center/cover`:'rgba(255,255,255,.22)'};overflow:hidden">${av?'':esc(peer.name.charAt(0).toUpperCase())}</span>
+       <span class="chOnlineDot" data-uid="${peer.id}" style="display:${on?'block':'none'}"></span>
+     </div>
+     <div style="flex:1"><div style="font-weight:900;font-size:15.5px">${esc(peer.name)}</div><div class="chLastSeen" data-uid="${peer.id}" style="font-size:11.5px;opacity:.95;font-weight:${on?'800':'500'}">${esc(status)}</div></div>
+     <span style="font-size:11px;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px" title="المحادثة محفوظة تلقائياً">💾 محفوظة تلقائياً</span>
+     <button class="btn gh sm" onclick="App._exportConv('${peer.id}')" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.3)">⬇️ تنزيل</button>
+   </div>
+   <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:20px 18px;background:
+       radial-gradient(circle at 15% 20%,rgba(14,165,233,.05),transparent 45%),
+       radial-gradient(circle at 85% 75%,rgba(236,72,153,.05),transparent 45%),
+       linear-gradient(180deg,#eef2f8,#e7edf6)">
+     ${conv.length?App._groupedBubbles(conv,myUid,theme):'<div style="text-align:center;color:#94a3b8;padding:50px;font-size:13px">👋 لا رسائل بعد — ابدأ المحادثة الآن</div>'}
+   </div>
+   ${App._replyingTo?`<div id="replyBar" style="padding:8px 16px;background:#fff;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px"><span style="color:#2e6df0;font-size:16px">↩️</span><div style="flex:1;font-size:12px;color:#475569;border-inline-start:3px solid #2e6df0;padding-inline-start:10px">رد على: ${esc((App._replyingTo.text||'[مرفق]').slice(0,70))}</div><button onclick="App._replyingTo=null;App._renderChatPanel('${peer.id}')" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px">✕</button></div>`:''}
+   <div style="padding:13px 16px;background:#fff;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">
+     <input type="text" id="chatInput" placeholder="اكتب رسالة..." style="flex:1;padding:12px 18px;border:1.5px solid #e2e8f0;border-radius:999px;font-size:13.8px;outline:none;transition:border-color .2s;background:#f8fafc" onfocus="this.style.borderColor='#2e6df0';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'" onkeydown="if(event.key==='Enter')App._sendChat('${peer.id}')">
+     <button onclick="App._attachChatFile('${peer.id}')" title="إرفاق ملف" style="width:44px;height:44px;background:linear-gradient(135deg,#64748b,#475569);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:17px;box-shadow:0 4px 10px -2px rgba(0,0,0,.2);transition:transform .15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📎</button>
+     <button id="chatVoiceBtn" onclick="App._toggleVoiceRec('${peer.id}')" title="تسجيل صوتى" style="width:44px;height:44px;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:17px;box-shadow:0 4px 10px -2px rgba(0,0,0,.2);transition:transform .15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">🎤</button>
+     <button onclick="App._sendChat('${peer.id}')" title="إرسال" style="width:44px;height:44px;background:${theme.me};color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:17px;box-shadow:0 5px 14px -3px rgba(0,0,0,.3);transition:transform .15s" onmouseover="this.style.transform='scale(1.12)'" onmouseout="this.style.transform=''">➤</button>
+   </div>`;};
+
+/* تجميع الفقاعات بالأيام + فواصل التاريخ */
+App._groupedBubbles=function(conv,myUid,theme){let html="";let lastDay="";
+  conv.forEach(m=>{const d=new Date(m.at);const day=d.toDateString();
+    if(day!==lastDay){lastDay=day;const lbl=App._dayLabel(m.at);
+      html+=`<div style="text-align:center;margin:14px 0 16px"><span style="background:rgba(15,32,56,.08);color:#475569;font-size:11px;font-weight:800;padding:4px 14px;border-radius:999px">${esc(lbl)}</span></div>`;}
+    html+=App._renderMsgBubble(m,myUid,theme);});
+  return html;};
+App._dayLabel=function(ts){const d=new Date(ts);const now=new Date();const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+  const diff=Math.round((t0-dd)/86400000);if(diff===0)return "اليوم";if(diff===1)return "أمس";if(diff<7)return fmtWeekday(d);return fmtDate(d);};
+
+/* فقاعة رسالة بشكل آيفون — ذيل + ظل + تفاعلات + ردود */
+App._renderMsgBubble=function(m,myUid,theme){const mine=m.from===myUid;const time=App._msgTime(m.at);
+  const bubble=mine?theme.me:'#ffffff';
+  const color=mine?'#fff':'#0f172a';const align=mine?'flex-end':'flex-start';
+  const reactions=(App.db.msgReactions||{})[m.id]||{};
+  const emoList={};Object.values(reactions).forEach(e=>{emoList[e]=(emoList[e]||0)+1;});
+  const rxHtml=Object.keys(emoList).map(e=>`<span style="background:#fff;border:1.5px solid #e2e8f0;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.08)" onclick="App.addReaction('${m.id}','${e}')">${e} ${emoList[e]}</span>`).join(" ");
+  const replyRef=m.replyTo?(App.db.messages||[]).find(x=>x.id===m.replyTo):null;
+  const replyHtml=replyRef?`<div style="background:${mine?'rgba(255,255,255,.18)':'rgba(46,109,240,.08)'};border-inline-start:3px solid ${mine?'rgba(255,255,255,.65)':'#2e6df0'};padding:6px 10px;margin-bottom:6px;border-radius:8px;font-size:11.5px;opacity:.95"><b>↩️ ${esc((App.db.users.find(u=>u.id===replyRef.from)||{}).name||'')}</b><br>${esc((replyRef.text||'[مرفق]').slice(0,60))}</div>`:'';
+  let content="";
+  if(m.kind==="deleted"){content=`<i style="opacity:.6">🚫 رسالة محذوفة</i>`;}
+  else if(m.kind==="voice"){content=`<audio controls src="${esc(m.attachment&&m.attachment.data||'')}" style="height:38px;max-width:230px"></audio>`;}
+  else if(m.kind==="file"&&m.attachment){content=`<a href="${esc(m.attachment.data||'')}" download="${esc(m.attachment.name||'file')}" style="color:${color};text-decoration:none;display:flex;align-items:center;gap:10px"><span style="width:40px;height:40px;background:rgba(${mine?'255,255,255,.22':'46,109,240,.12'});border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px">📎</span><span><b style="font-size:12.5px">${esc(m.attachment.name||'ملف')}</b><br><span style="font-size:10.5px;opacity:.85">${(m.attachment.size/1024).toFixed(1)} KB · تنزيل</span></span></a>`;}
+  else{content=`<div style="white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere">${esc(m.text||'')}</div>`;}
+  const readMark=mine?(m.readAt?'<span style="color:#7dd3fc;font-size:11px;font-weight:900">✓✓</span>':'<span style="color:rgba(255,255,255,.65);font-size:11px">✓</span>'):'';
+  const radius=mine?'20px 20px 5px 20px':'20px 20px 20px 5px';
+  const tail=mine
+    ?`<svg class="tail" style="inset-inline-end:-6px" viewBox="0 0 14 18"><path d="M0,0 C6,6 10,12 14,18 L0,18 Z" fill="${theme.tail||'#06b6d4'}"/></svg>`
+    :`<svg class="tail" style="inset-inline-start:-6px;transform:scaleX(-1)" viewBox="0 0 14 18"><path d="M0,0 C6,6 10,12 14,18 L0,18 Z" fill="#ffffff"/></svg>`;
+  return `<div class="chatMsgWrap" data-mid="${m.id}" style="display:flex;justify-content:${align};margin-bottom:${rxHtml?'20px':'11px'};position:relative">
+    <div class="iosBubble ${mine?'mine':'theirs'}" data-mid="${m.id}" style="max-width:72%;background:${bubble};color:${color};padding:10px 14px;border-radius:${radius};box-shadow:0 3px 10px -2px rgba(15,32,56,.14);position:relative;cursor:pointer" onmousedown="App._msgPressStart(event,'${m.id}')" onmouseup="App._msgPressEnd()" onmouseleave="App._msgPressEnd()" ontouchstart="App._msgPressStart(event,'${m.id}')" ontouchend="App._msgPressEnd()" ondblclick="App.replyToMessage('${m.id}')">
+      ${replyHtml}${content}
+      <div style="font-size:10.5px;opacity:.78;margin-top:4px;display:flex;align-items:center;gap:4px;justify-content:${mine?'flex-end':'flex-start'}">
+        <span>${time}</span>${readMark}
+      </div>
+      ${tail}
+      ${rxHtml?`<div style="position:absolute;bottom:-12px;${mine?'left':'right'}:10px;display:flex;gap:4px">${rxHtml}</div>`:''}
+    </div>
+   </div>`;};
+
+/* تلوين ذيل الفقاعة حسب الثيم */
+(function(){App.msgThemes.forEach(t=>{const m=/,(#[0-9a-fA-F]{6})\)?\s*$/.exec(t.me)|| /(#[0-9a-fA-F]{6})\s*\)/.exec(t.me);t.tail=(m&&m[1])|| "#06b6d4";});})();
+
+/* تحديث حالة الاتصال فى صفحة الشات دون إعادة رسم كاملة */
+App._refreshChatPresence=function(){try{
+  document.querySelectorAll(".chOnlineDot[data-uid]").forEach(dot=>{const id=dot.getAttribute("data-uid");dot.style.display=App._userOnline(id)?'block':'none';});
+  document.querySelectorAll(".chLastSeen[data-uid]").forEach(el=>{const id=el.getAttribute("data-uid");const on=App._userOnline(id);el.textContent=App._lastSeenText(id);el.style.color=on?'#16a34a':'';el.style.fontWeight=on?'800':'';});
+}catch(e){}};
+
+/* تمرير لأسفل عند فتح الشات */
+(function(){const orig=App._renderChatPanel;App._renderChatPanel=function(peerId){orig.apply(this,arguments);setTimeout(()=>{const m=document.getElementById("chatMsgs");if(m)m.scrollTop=m.scrollHeight;},60);};})();
+(function(){const orig=App.render;App.render=function(){const r=orig.apply(this,arguments);if(this.route==="inbox")setTimeout(()=>{const m=document.getElementById("chatMsgs");if(m)m.scrollTop=m.scrollHeight;},80);return r;};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3) عُهدة المصانع (بالصنف) — صرف من مخازنى لعهدة المصنع + حركات وارد/صادر
+      + أرصدة لكل صنف + كشوف وتقارير + تصدير Excel
+   ══════════════════════════════════════════════════════════════════════════ */
+App._ensureFacCust=function(){if(!Array.isArray(this.db.facCustody))this.db.facCustody=[];};
+
+/* تجميع أرصدة العهدة لكل صنف */
+App._facItemAgg=function(plantId){this._ensureFacCust();const s=this.db.season;const map={};
+  (this.db.facCustody||[]).filter(x=>x.season===s&&(!plantId||x.plantId===plantId)).forEach(x=>{
+    const key=x.plantId+"|"+(x.itemId||x.itemName);
+    const r=map[key]||(map[key]={plantId:x.plantId,itemId:x.itemId||null,itemName:x.itemName,unit:x.unit||'',inQty:0,outQty:0,inVal:0,outVal:0,moves:[]});
+    if(x.dir==='in'){r.inQty+=+x.qty||0;r.inVal+=+x.totalVal||0;}else{r.outQty+=+x.qty||0;r.outVal+=+x.totalVal||0;}
+    r.moves.push(x);map[key]=r;});
+  return map;};
+App._facPlantValue=function(plantId){const m=this._facItemAgg(plantId);return Object.values(m).reduce((s,r)=>s+(r.inVal-r.outVal),0);};
+App._facPlantItemsCount=function(plantId){const m=this._facItemAgg(plantId);return Object.values(m).filter(r=>(r.inQty-r.outQty)>0.0001).length;};
+App._facTotalValue=function(){const s=this.db.season;return (this.db.facCustody||[]).filter(x=>x.season===s).reduce((a,x)=>a+(x.dir==='in'?1:-1)*(+x.totalVal||0),0);};
+App._facItemAvg=function(plantId,itemId,itemName){const m=this._facItemAgg(plantId);const r=m[plantId+"|"+(itemId||itemName)];if(!r)return 0;const q=r.inQty-r.outQty;const v=r.inVal-r.outVal;return q>0.0001?v/q:(r.inQty>0?r.inVal/r.inQty:0);};
+
+Pages.faccustody=function(){App._ensureFacCust();const plants=App.accountsBy("tollplant");
+  return head("📦","عُهدة المصانع (بالصنف)","بتصرف أصناف من مخازنك لعهدة كل مصنع — تتابع الوارد والصادر والرصيد لكل صنف لحد ما يتصرف أو يرجع",
+    `<button class="btn green sm" onclick="App.facIssue()">📤 صرف صنف لعهدة مصنع</button><button class="btn blue sm" onclick="App.facOut()">📥 صادر / إرجاع من العهدة</button><button class="btn gh sm" onclick="App.facPrintAll()">🖨️ طباعة كل الأرصدة</button><button class="btn gh sm" onclick="App.facExportXLS()">📊 Excel</button>`)+`
+   <div class="grid kpis" style="margin-bottom:14px">
+    ${kpi("عدد المصانع",plants.length,"مصنع تشغيل/تعبئة",'b','🏭')}
+    ${kpi("قيمة العهد الجارية",m2(App._facTotalValue()),"إجمالى المتبقّى عند المصانع",'gold','📦')}
+    ${kpi("حركات العهدة",(App.db.facCustody||[]).filter(x=>x.season===App.db.season).length,"وارد + صادر",'p','🔄')}
+   </div>
+   <div class="card"><div class="card-h">🏭 أرصدة عهدة المصانع</div><div class="card-b p0"><div class="tw">
+    <table class="t"><thead><tr><th>الكود</th><th class="r">المصنع</th><th>الموقع</th><th>عدد الأصناف</th><th>قيمة العهدة (ج.م)</th><th></th></tr></thead><tbody>
+    ${plants.length?plants.map(p=>{const val=App._facPlantValue(p.id);const cnt=App._facPlantItemsCount(p.id);return `<tr class="linkrow" onclick="App.facPlantLedger('${p.id}')"><td class="accode">${esc(p.code)}</td><td class="r"><b>${esc(p.name)}</b></td><td>${esc(p.data&&p.data.location||'—')}</td><td class="num">${cnt}</td><td class="num"><b style="color:${val>0?'var(--green)':'var(--muted)'}">${money(val)}</b></td>
+      <td onclick="event.stopPropagation()"><button class="btn purple sm" onclick="App.facPlantLedger('${p.id}')">🗂️ الأصناف والحركات</button><button class="btn gh sm" onclick="App.facPrintPlant('${p.id}')">🖨️</button></td></tr>`}).join(""):`<tr><td colspan="6" class="empty"><div style="padding:20px"><div style="font-size:34px">🏭</div>لا مصانع — أضفها من «مصانع التشغيل والتعبئة»</div></td></tr>`}
+    </tbody></table></div></div></div>`;};
+Pages.faccustody.meta={title:"عهدة المصانع",crumb:"اللوجستيات"};
+
+/* 📤 صرف صنف من المخزن لعهدة مصنع (وارد للعهدة) */
+App.facIssue=function(preItemId){App._ensureFacCust();if(App._roBlock("صرف عهدة للمصنع"))return;
+  const plants=this.accountsBy("tollplant");if(!plants.length){toast("أضف مصنع تشغيل أولاً","err");return;}
+  const items=this.storeItems().filter(a=>a.data&&a.data.inStore!==false);
+  if(!items.length){toast("لا أصناف فى المخازن — أضف أصنافاً من صفحة المخازن","err");return;}
+  const whs=this.warehouses();
+  const plantOpts=plants.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  const itemOpts=items.map(a=>{const q=this.storeItemQty(a.id);return `<option value="${a.id}" data-unit="${esc((a.data&&a.data.unit)||'')}" data-avg="${this.storeAvg(a.id).toFixed(2)}" data-wh="${esc(this.itemWh(a))}" ${a.id===preItemId?'selected':''}>${esc(a.name)} — متاح ${numf(q)} ${esc((a.data&&a.data.unit)||'')}</option>`;}).join("");
+  this.modal("📤 صرف صنف من المخزن لعهدة المصنع",`<div class="fg">
+    <div class="field"><label>المصنع (الجهة المستلمة للعهدة)</label><select id="fiPlant">${plantOpts}</select></div>
+    <div class="field"><label>التاريخ</label><input type="date" id="fiDate" value="${todayISO()}"></div>
+    <div class="field" style="grid-column:span 2"><label>الصنف (من المخزن)</label><select id="fiItem" onchange="App._fiPick()">${itemOpts}</select></div>
+    <div class="field"><label>الكمية المصروفة</label><input type="number" step="0.01" id="fiQty" oninput="App._fiCalc()"></div>
+    <div class="field"><label>الوحدة</label><input id="fiUnit" disabled></div>
+    <div class="field"><label>قيمة الوحدة (ج.م)</label><input type="number" step="0.01" id="fiVU" oninput="App._fiCalc()"></div>
+    <div class="field"><label>الإجمالى (ج.م)</label><input id="fiTot" disabled></div>
+    <div class="field"><label>رقم المستند / إذن الصرف</label><input id="fiDoc"></div>
+    <div class="field"><label>ملاحظات</label><input id="fiNote"></div>
+   </div>
+   <div class="hint" style="margin-top:6px;padding:8px;background:rgba(30,134,89,.08);border-radius:8px">💡 القيد: <b>مدين على حساب المصنع</b> (عهدة عنده) + <b>دائن على رصيد صنف المخزن</b> (يخصم من المخزن). يظهر فى رصيد عهدة المصنع كـ«وارد» لحد ما يتصرف أو يرجع.</div>`,
+   `<button class="btn green" id="fiS">💾 صرف للعهدة</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  this._fiPick();$("#fiS").onclick=()=>this._facIssueSave();};
+App._fiPick=function(){const s=$("#fiItem");if(!s||!s.selectedOptions[0])return;const o=s.selectedOptions[0];
+  const u=$("#fiUnit");if(u)u.value=o.getAttribute("data-unit")||"";const vu=$("#fiVU");if(vu&&!vu.value)vu.value=o.getAttribute("data-avg")||"";this._fiCalc();};
+App._fiCalc=function(){const q=Number(($("#fiQty")||{}).value)||0,u=Number(($("#fiVU")||{}).value)||0;const t=$("#fiTot");if(t)t.value=money(q*u);};
+App._facIssueSave=function(){const plantId=$("#fiPlant").value;const date=$("#fiDate").value;const itemId=$("#fiItem").value;const qty=Number($("#fiQty").value)||0;const vu=Number($("#fiVU").value)||0;const doc=$("#fiDoc").value.trim();const note=$("#fiNote").value.trim();
+  const item=this.acct(itemId);if(!item){toast("اختر صنفاً","err");return;}
+  const tot=qty*vu;if(!qty||!tot||!plantId){toast("أكمل البيانات (كمية وقيمة)","err");return;}
+  const avail=this.storeItemQty(itemId);
+  const go=()=>{const fid=uid();const unit=(item.data&&item.data.unit)||"";
+    this.db.facCustody.push({id:fid,season:this.db.season,date,doc,plantId,itemId,itemName:item.name,unit,dir:'in',qty,unitVal:vu,totalVal:tot,note,srcWhId:this.itemWh(item)});
+    this.post({date,doc,desc:"عهدة مصنع — صرف "+item.name+" ("+numf(qty)+" "+unit+")",debit:plantId,credit:itemId,amount:tot,kind:"facCust",meta:{facRef:fid,facDir:'in',plantId,qty,price:vu,itemId,unit}});
+    this.save();this.closeModal();this.render();toast("✅ تم صرف الصنف لعهدة المصنع");};
+  if(qty>avail+0.001){this._facPending=go;
+    this.modal("⚠️ رصيد غير كافٍ — "+esc(item.name),`<p style="font-size:15px;line-height:1.9">المتاح فى المخزن: <b>${numf(avail)}</b><br>المطلوب صرفه: <b>${numf(qty)}</b><br><br>تقدر تتجاوز وتكمل الصرف.</p>`,
+     `<button class="btn danger" onclick="App.closeModal();var f=App._facPending;App._facPending=null;if(f)f()">تجاوز وإتمام</button><button class="btn gh" onclick="App.closeModal()">رجوع</button>`);return;}
+  go();};
+
+/* 📥 صادر / إرجاع من عهدة المصنع */
+App.facOut=function(prePlant){App._ensureFacCust();if(App._roBlock("صادر من العهدة"))return;
+  const plants=this.accountsBy("tollplant");if(!plants.length){toast("لا مصانع","err");return;}
+  const plantOpts=plants.map(p=>`<option value="${p.id}" ${p.id===prePlant?'selected':''}>${esc(p.name)}</option>`).join("");
+  const whs=this.warehouses().map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join("");
+  const exps=this.db.expenseTypes.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join("");
+  this.modal("📥 صادر / إرجاع من عهدة المصنع",`<div class="fg">
+    <div class="field"><label>المصنع</label><select id="foPlant" onchange="App._foItems()">${plantOpts}</select></div>
+    <div class="field"><label>التاريخ</label><input type="date" id="foDate" value="${todayISO()}"></div>
+    <div class="field" style="grid-column:span 2"><label>الصنف الموجود فى العهدة</label><select id="foItem" onchange="App._foPick()"></select></div>
+    <div class="field"><label>الكمية</label><input type="number" step="0.01" id="foQty" oninput="App._foCalc()"></div>
+    <div class="field"><label>قيمة الوحدة (ج.م)</label><input type="number" step="0.01" id="foVU" oninput="App._foCalc()"></div>
+    <div class="field"><label>الإجمالى (ج.م)</label><input id="foTot" disabled></div>
+    <div class="field"><label>نوع الصادر</label><select id="foMode" onchange="App._foMode()">
+       <option value="return">↩️ إرجاع للمخزن</option>
+       <option value="consume">🔥 استهلاك / تحميل على مصروف</option>
+     </select></div>
+    <div class="field" id="foWhWrap"><label>المخزن المستلِم</label><select id="foWh">${whs}</select></div>
+    <div class="field" id="foExpWrap" style="display:none"><label>نوع المصروف (للاستهلاك)</label><select id="foExp">${exps}</select></div>
+    <div class="field" id="foCropWrap" style="display:none"><label>مركز التكلفة (الموقع)</label><select id="foCrop">${App.cropSelect('','— اختر —')}</select></div>
+    <div class="field"><label>رقم المستند</label><input id="foDoc"></div>
+    <div class="field"><label>ملاحظات</label><input id="foNote"></div>
+   </div>
+   <div class="hint" id="foHint" style="margin-top:6px;padding:8px;background:rgba(46,109,240,.08);border-radius:8px"></div>`,
+   `<button class="btn blue" id="foS">💾 حفظ الصادر</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  this._foItems();this._foMode();$("#foS").onclick=()=>this._facOutSave();};
+App._foItems=function(){const pid=($("#foPlant")||{}).value;const m=this._facItemAgg(pid);const sel=$("#foItem");if(!sel)return;
+  const rows=Object.values(m).filter(r=>(r.inQty-r.outQty)>0.0001);
+  sel.innerHTML=rows.length?rows.map(r=>`<option value="${esc(r.itemId||'')}" data-name="${esc(r.itemName)}" data-unit="${esc(r.unit)}" data-bal="${(r.inQty-r.outQty).toFixed(2)}" data-avg="${this._facItemAvg(pid,r.itemId,r.itemName).toFixed(2)}">${esc(r.itemName)} — رصيد ${numf(r.inQty-r.outQty)} ${esc(r.unit)}</option>`).join(""):`<option value="">لا أصناف فى عهدة هذا المصنع</option>`;
+  this._foPick();};
+App._foPick=function(){const o=($("#foItem")||{}).selectedOptions&&$("#foItem").selectedOptions[0];if(!o)return;const vu=$("#foVU");if(vu)vu.value=o.getAttribute("data-avg")||"";this._foCalc();};
+App._foCalc=function(){const q=Number(($("#foQty")||{}).value)||0,u=Number(($("#foVU")||{}).value)||0;const t=$("#foTot");if(t)t.value=money(q*u);};
+App._foMode=function(){const m=($("#foMode")||{}).value;const ret=m==="return";
+  const wh=$("#foWhWrap"),ex=$("#foExpWrap"),cr=$("#foCropWrap"),h=$("#foHint");
+  if(wh)wh.style.display=ret?'':'none';if(ex)ex.style.display=ret?'none':'';if(cr)cr.style.display=ret?'none':'';
+  if(h)h.innerHTML=ret?"القيد: <b>مدين على صنف المخزن</b> (يرجع للمخزن) + <b>دائن على حساب المصنع</b> (تخصم العهدة).":"القيد: <b>مدين على المصروف/الملك</b> (يُحمّل على مركز التكلفة) + <b>دائن على حساب المصنع</b> (تخصم العهدة). يدخل قائمة الدخل وموقف المواقع.";};
+App._facOutSave=function(){const pid=$("#foPlant").value;const date=$("#foDate").value;const o=$("#foItem").selectedOptions[0];if(!o||!o.value&&!o.getAttribute("data-name")){toast("اختر صنفاً من العهدة","err");return;}
+  const itemId=o.value||null;const itemName=o.getAttribute("data-name")||"";const unit=o.getAttribute("data-unit")||"";const bal=Number(o.getAttribute("data-bal"))||0;
+  const qty=Number($("#foQty").value)||0;const vu=Number($("#foVU").value)||0;const tot=qty*vu;const mode=$("#foMode").value;const doc=$("#foDoc").value.trim();const note=$("#foNote").value.trim();
+  if(!qty||!tot){toast("أكمل الكمية والقيمة","err");return;}
+  if(qty>bal+0.001){toast("الكمية أكبر من رصيد العهدة ("+numf(bal)+")","err");return;}
+  const fid=uid();const base={id:fid,season:this.db.season,date,doc,plantId:pid,itemId,itemName,unit,dir:'out',qty,unitVal:vu,totalVal:tot,note,mode};
+  if(mode==="return"){const whId=$("#foWh").value;base.retWhId=whId;
+    let dest=itemId?this.acct(itemId):null;
+    if(dest&&this.itemWh(dest)!==whId){/* صنف موجود لكن بمخزن آخر — نرجّع لنفس حساب الصنف */}
+    if(!dest){dest=this.storeEnsureItem(itemName,unit);}
+    this.db.facCustody.push(base);
+    this.post({date,doc,desc:"إرجاع من عهدة المصنع للمخزن — "+itemName+" ("+numf(qty)+" "+unit+")",debit:dest.id,credit:pid,amount:tot,kind:"facCust",meta:{facRef:fid,facDir:'out',plantId:pid,qty,price:vu,itemId:dest.id,unit}});
+    this.save();this.closeModal();this.render();toast("✅ رجع الصنف للمخزن");
+  }else{const expTypeId=$("#foExp").value||null;const cropId=$("#foCrop").value||null;const cr=cropId?this.cropById(cropId):null;
+    base.expTypeId=expTypeId;base.locId=cr?cr.loc.id:null;base.cropId=cropId;
+    this.db.facCustody.push(base);
+    this.post({date,doc,desc:"استهلاك عهدة مصنع — "+itemName+" ("+numf(qty)+" "+unit+")",debit:this.ownerAcct().id,credit:pid,amount:tot,kind:"expense",expTypeId,locId:base.locId,cropId,meta:{facRef:fid,facDir:'out',facUse:1,plantId:pid,qty,unit}});
+    this.save();this.closeModal();this.render();toast("✅ تم تسجيل الاستهلاك");}
+};
+
+/* 🗂️ دفتر أستاذ عهدة المصنع — أصناف + حركات لكل صنف */
+App.facPlantLedger=function(pid){App._ensureFacCust();const p=this.acct(pid);if(!p)return;const m=this._facItemAgg(pid);
+  const rows=Object.values(m).sort((a,b)=>(b.inVal-b.outVal)-(a.inVal-a.outVal));
+  const itemsHtml=rows.length?rows.map(r=>{const balQ=r.inQty-r.outQty;const balV=r.inVal-r.outVal;const key=(r.itemId||r.itemName);return `
+    <div class="card" style="margin-bottom:10px">
+     <div class="card-h" style="font-size:13px;cursor:pointer" onclick="var e=document.getElementById('facMv_${esc(key).replace(/[^a-zA-Z0-9]/g,'')}');if(e)e.style.display=e.style.display==='none'?'':'none'">📦 ${esc(r.itemName)} <span class="act"><span class="pill ${balQ>0.0001?'g':'n'}">رصيد ${numf(balQ)} ${esc(r.unit)}</span> <span class="pill gold">${money(balV)} ج.م</span></span></div>
+     <div class="card-b p0"><div class="tw" id="facMv_${esc(key).replace(/[^a-zA-Z0-9]/g,'')}">
+      <table class="t"><thead><tr><th>التاريخ</th><th>المستند</th><th>الحركة</th><th>الكمية</th><th>قيمة الوحدة</th><th>الإجمالى</th><th>ملاحظات</th></tr></thead><tbody>
+      ${r.moves.sort((a,b)=>new Date(a.date)-new Date(b.date)).map(x=>`<tr><td>${esc(fmtDate(x.date))}</td><td>${esc(x.doc||'—')}</td><td>${x.dir==='in'?'<span class="pill g">📤 وارد</span>':'<span class="pill r">'+(x.mode==='return'?'↩️ إرجاع':'🔥 استهلاك')+'</span>'}</td><td class="num">${numf(x.qty)}</td><td class="num">${money(x.unitVal)}</td><td class="num">${money(x.totalVal)}</td><td>${esc(x.note||'')}</td></tr>`).join("")}
+      </tbody></table>
+     </div></div>
+    </div>`;}).join(""):`<div class="empty" style="padding:30px"><div class="b">📦</div>لا عهد مسجّلة لهذا المصنع</div>`;
+  this.modal("🗂️ عهدة المصنع — "+esc(p.name),`
+    <div class="grid kpis" style="margin-bottom:12px">
+     ${kpi("قيمة العهدة الحالية",m2(this._facPlantValue(pid)),"المتبقّى",'g','📦')}
+     ${kpi("عدد الأصناف",this._facPlantItemsCount(pid),"برصيد",'b','🔢')}
+     ${kpi("إجمالى الحركات",rows.reduce((s,r)=>s+r.moves.length,0),"وارد + صادر",'p','🔄')}
+    </div>
+    ${itemsHtml}`,
+   `<button class="btn green" onclick="App.closeModal();App.facIssue()">📤 صرف جديد</button><button class="btn blue" onclick="App.closeModal();App.facOut('${pid}')">📥 صادر/إرجاع</button><button class="btn gh" onclick="App.facPrintPlant('${pid}')">🖨️ طباعة</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);};
+
+/* طباعة أرصدة عهدة مصنع واحد */
+App.facPrintPlant=function(pid){const p=this.acct(pid);const m=this._facItemAgg(pid);const rows=Object.values(m);
+  let body=`<table><thead><tr><th>الصنف</th><th>الوحدة</th><th>وارد (كمية)</th><th>صادر (كمية)</th><th>الرصيد (كمية)</th><th>قيمة الرصيد (ج.م)</th></tr></thead><tbody>`;
+  let tv=0;rows.forEach(r=>{const bq=r.inQty-r.outQty;const bv=r.inVal-r.outVal;tv+=bv;body+=`<tr><td style="text-align:right">${esc(r.itemName)}</td><td>${esc(r.unit)}</td><td>${numf(r.inQty)}</td><td>${numf(r.outQty)}</td><td><b>${numf(bq)}</b></td><td>${money(bv)}</td></tr>`;});
+  body+=`<tr style="font-weight:900;background:#f1f5f9"><td colspan="5" style="text-align:left">إجمالى قيمة العهدة</td><td>${money(tv)}</td></tr></tbody></table>`;
+  this.printDoc("كشف عهدة مصنع — "+(p?p.name:''),body,"أرصدة الأصناف فى عهدة المصنع");};
+
+/* طباعة كل الأرصدة لكل المصانع */
+App.facPrintAll=function(){const plants=this.accountsBy("tollplant");
+  let body="";let grand=0;
+  plants.forEach(p=>{const m=this._facItemAgg(p.id);const rows=Object.values(m).filter(r=>(r.inVal-r.outVal)>0.0001||(r.inQty-r.outQty)>0.0001);if(!rows.length)return;
+    let pv=0;body+=`<h3 style="margin:14px 0 4px;color:#0e2536">🏭 ${esc(p.name)}${p.data&&p.data.location?' — '+esc(p.data.location):''}</h3><table><thead><tr><th>الصنف</th><th>الوحدة</th><th>الرصيد</th><th>قيمة الرصيد (ج.م)</th></tr></thead><tbody>`;
+    rows.forEach(r=>{const bq=r.inQty-r.outQty;const bv=r.inVal-r.outVal;pv+=bv;body+=`<tr><td style="text-align:right">${esc(r.itemName)}</td><td>${esc(r.unit)}</td><td>${numf(bq)}</td><td>${money(bv)}</td></tr>`;});
+    grand+=pv;body+=`<tr style="font-weight:900;background:#f1f5f9"><td colspan="3" style="text-align:left">إجمالى المصنع</td><td>${money(pv)}</td></tr></tbody></table>`;});
+  if(!body)body="<p>لا عهد مسجّلة.</p>";
+  body+=`<div style="margin-top:14px;padding:12px;background:#0e2536;color:#fff;border-radius:10px;font-weight:900;font-size:16px;text-align:center">الإجمالى العام لكل عهد المصانع: ${money(grand)} ج.م</div>`;
+  this.printDoc("كشف شامل — أرصدة عهدة كل المصانع",body,"موسم "+this.db.season);};
+
+/* تصدير Excel لأرصدة العهدة */
+App.facExportXLS=function(){const plants=this.accountsBy("tollplant");const rows=this.xlsxHeaderRows("عهدة المصانع — الأصناف والأرصدة",7);
+  rows.push(["المصنع","الصنف","الوحدة","وارد","صادر","الرصيد","قيمة الرصيد"].map(h=>({v:h,s:"hdr"})));
+  plants.forEach(p=>{const m=this._facItemAgg(p.id);Object.values(m).forEach(r=>{const bq=r.inQty-r.outQty;const bv=r.inVal-r.outVal;
+    rows.push([{v:p.name,s:"txt"},{v:r.itemName,s:"txt"},{v:r.unit,s:"txt"},{v:r.inQty,s:"num"},{v:r.outQty,s:"num"},{v:bq,s:"num"},{v:bv,s:"num"}]);});});
+  this.exportXLS("عهدة_المصانع",[{name:"Factory Custody",rows,widths:[24,24,10,12,12,12,14]}]);};
+
+/* نقل الصنف إلى الحساب الصحيح عند الإرجاع إن لم يوجد */
+App.storeEnsureItem=App.storeEnsureItem||function(name,unit){let a=this.accountsBy("store").find(x=>x.name===name);if(!a){a=this.addAccount({node:"store",name:(name||"").trim(),data:{unit:unit||""}},1)}return a;};
+
+/* إضافة عهدة المصانع للقائمة + الصلاحية */
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);
+  if(!have.faccustody)PERMS.push(["faccustody","📦 عهدة المصانع (بالصنف)"]);})();
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="tollplants");
+  if(i>=0)arr.splice(i+1,0,["faccustody","📦","عُهدة المصانع (بالصنف)"]);
+  return arr;};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4) الحوش (أرقام الحيشان) + وزن الكرتونة + تقارير الإنتاجية
+   ══════════════════════════════════════════════════════════════════════════ */
+App._ensureHosha=function(){if(!Array.isArray(this.db.hoshas))this.db.hoshas=[];if(this.db.cartonWeightKg==null)this.db.cartonWeightKg=4;};
+App.cartonWeight=function(){this._ensureHosha();return Number(this.db.cartonWeightKg)||0;};
+
+/* كمية الإنتاج (كجم) من حركة توريد: الكراتين × وزن الكرتونة + المحلى */
+App.supplyKg=function(entry){const t=this.strawTotals(entry.straw||{});const cw=this.cartonWeight();
+  return (t.cartonQty||0)*cw + (t.localQty||0);};
+
+/* ---- حقن حقل الحوشة فى شاشة توريد الفراولة ---- */
+App._injectHoshaField=function(mode,E){const cropSel=document.getElementById("stCrop");if(!cropSel)return;
+  if(document.getElementById("stHoshaWrap"))return;const field=cropSel.closest(".field");if(!field)return;
+  this._ensureHosha();
+  const wrap=document.createElement("div");wrap.className="field";wrap.id="stHoshaWrap";wrap.style.gridColumn="span 2";
+  wrap.innerHTML=`<label>🧩 رقم الحوشة <span class="hint" style="font-weight:400">— لمتابعة إنتاج كل حوشة (تظهر حسب الموقع)</span></label>
+    <div style="display:flex;gap:8px">
+      <select id="stHoshaSel" onchange="var i=document.getElementById('stHosha');if(this.value)i.value=this.value;" style="flex:1"></select>
+      <input id="stHosha" placeholder="أو اكتب رقم الحوشة يدوياً" style="flex:1" value="${E&&E.hosha?esc(E.hosha):''}">
+    </div>`;
+  field.parentNode.insertBefore(wrap,field.nextSibling);
+  this._updateHoshaOptions();
+  cropSel.addEventListener("change",()=>this._updateHoshaOptions());};
+App._updateHoshaOptions=function(){const cropSel=document.getElementById("stCrop");const sel=document.getElementById("stHoshaSel");if(!sel)return;
+  let locId=null;const cid=cropSel&&cropSel.value;if(cid){const r=this.cropById(cid);if(r)locId=r.loc.id;}
+  const plots=(this.db.hoshas||[]).filter(h=>!locId||h.locId===locId);
+  sel.innerHTML=`<option value="">— اختر حوشة —</option>`+plots.map(h=>`<option value="${esc(h.no)}">حوشة ${esc(h.no)}${h.area?(' — '+numf(h.area)+' ف'):''}${h.variety?(' — '+esc(h.variety)):''}</option>`).join("")+(plots.length?'':`<option value="" disabled>لا حوش معرّفة لهذا الموقع — أضفها من الإعدادات</option>`);};
+
+(function(){const origInv=App.strawInvoice;App.strawInvoice=function(mode,fixedPartnerId,editEntry,ctx){const r=origInv.apply(this,arguments);try{App._injectHoshaField(mode,editEntry);}catch(e){}return r;};
+  const origSave=App._stSave;App._stSave=function(){const hoshaEl=document.getElementById("stHosha");const hosha=hoshaEl?hoshaEl.value.trim():"";
+    const editId=this._stEdit?this._stEdit.id:null;const beforeLen=(this.db.daily||[]).length;const r=origSave.apply(this,arguments);
+    try{let ent=null;if(editId)ent=(this.db.daily||[]).find(e=>e.id===editId);if(!ent&&(this.db.daily||[]).length>beforeLen)ent=this.db.daily[this.db.daily.length-1];
+      if(ent&&ent.kind==="supply"){ent.hosha=hosha;this.save();}}catch(e){}return r;};})();
+
+/* ---- إعدادات: إدارة الحوش + وزن الكرتونة ---- */
+App.hoshaAdd=function(id){this._ensureHosha();const h=id?(this.db.hoshas.find(x=>x.id===id)):null;
+  const locOpts=this.db.locations.map(l=>`<option value="${l.id}" ${h&&h.locId===l.id?'selected':''}>${esc(l.name)}</option>`).join("");
+  const varOpts=`<option value="">— بدون —</option>`+this.db.varieties.map(v=>`<option value="${esc(v.name)}" ${h&&h.variety===v.name?'selected':''}>${esc(v.name)}</option>`).join("");
+  this.modal(h?"✏️ تعديل حوشة":"🧩 حوشة جديدة",`<div class="fg">
+    <div class="field"><label>الموقع</label><select id="hoLoc">${locOpts}</select></div>
+    <div class="field"><label>رقم الحوشة</label><input id="hoNo" value="${h?esc(h.no):''}" placeholder="مثال: 1 / أ-3"></div>
+    <div class="field"><label>المساحة (فدان)</label><input type="number" step="0.01" id="hoArea" value="${h?esc(h.area||''):''}" placeholder="مثال: 2.5"></div>
+    <div class="field"><label>الصنف (اختيارى)</label><select id="hoVar">${varOpts}</select></div>
+    <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="hoNote" value="${h?esc(h.note||''):''}"></div>
+   </div>`,`<button class="btn gold" id="hoS">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);
+  $("#hoS").onclick=()=>{const locId=$("#hoLoc").value;const no=$("#hoNo").value.trim();if(!no){toast("اكتب رقم الحوشة","err");return;}
+    const area=Number($("#hoArea").value)||0;const variety=$("#hoVar").value;const note=$("#hoNote").value.trim();
+    if(h){h.locId=locId;h.no=no;h.area=area;h.variety=variety;h.note=note;}else{this.db.hoshas.push({id:uid(),locId,no,area,variety,note});}
+    this.save();this.closeModal();this.render();toast(h?"تم التعديل ✓":"✅ أُضيفت الحوشة");};};
+App.hoshaDel=function(id){this.confirmDel("حذف هذه الحوشة؟",()=>{this.db.hoshas=(this.db.hoshas||[]).filter(x=>x.id!==id);this.save();this.render();toast("تم الحذف");});};
+App.setCartonWeight=function(){this._ensureHosha();
+  this.modal("⚖️ وزن الكرتونة",`<div class="field"><label>وزن الكرتونة الواحدة (كجم)</label><input type="number" step="0.01" id="cwVal" value="${esc(this.cartonWeight())}" style="font-size:18px;font-weight:800;padding:12px"></div>
+   <div class="hint" style="margin-top:8px;padding:10px;background:rgba(46,109,240,.08);border-radius:8px;line-height:1.8">💡 يُستخدم فى حساب إنتاجية الفدان: <b>كمية الكجم = عدد الكراتين × وزن الكرتونة + المحلى (كجم)</b>. غيّره هنا لينعكس على كل تقارير الإنتاجية.</div>`,
+   `<button class="btn gold" onclick="App._saveCartonWeight()">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._saveCartonWeight=function(){const v=Number($("#cwVal").value)||0;this.db.cartonWeightKg=v;this.save();this.closeModal();toast("✅ وزن الكرتونة: "+numf(v)+" كجم");if(this.route==="settings")this.render();};
+
+/* بطاقة الإعدادات (الحوش + وزن الكرتونة) تُلحَق بصفحة الإعدادات */
+(function(){const origSet=Pages.settings;if(typeof origSet!=="function")return;Pages.settings=function(){const html=origSet.apply(this,arguments);App._ensureHosha();
+  const byLoc={};(App.db.hoshas||[]).forEach(h=>{(byLoc[h.locId]=byLoc[h.locId]||[]).push(h);});
+  const locBlocks=App.db.locations.map(l=>{const hs=byLoc[l.id]||[];if(!hs.length)return '';const totA=hs.reduce((s,h)=>s+(Number(h.area)||0),0);
+    return `<div style="margin-bottom:10px"><div style="font-weight:800;color:#0e2536;margin-bottom:4px">🗺️ ${esc(l.name)} <span class="hint">(${hs.length} حوشة · ${numf(totA)} فدان)</span></div>
+      <div class="tw"><table class="t"><thead><tr><th>رقم الحوشة</th><th>المساحة (ف)</th><th>الصنف</th><th>ملاحظات</th><th></th></tr></thead><tbody>
+      ${hs.map(h=>`<tr><td><b>${esc(h.no)}</b></td><td class="num">${numf(h.area)}</td><td>${esc(h.variety||'—')}</td><td>${esc(h.note||'')}</td><td style="white-space:nowrap"><button class="ib" onclick="App.hoshaAdd('${h.id}')">✏️</button><button class="ib" onclick="App.hoshaDel('${h.id}')">🗑️</button></td></tr>`).join("")}
+      </tbody></table></div></div>`;}).join("")||`<div class="hint">لا حوش بعد — اضغط «＋ حوشة جديدة» لتعريف حيشان المواقع (الملك).</div>`;
+  const extra=`<div class="card" id="set_hosha"><div class="card-h">🧩 حيشان المواقع (الملك) — أرقام الحوش والمساحات <span class="act"><button class="btn gold sm" onclick="App.hoshaAdd()">＋ حوشة جديدة</button></span></div>
+    <div class="card-b"><div class="hint" style="margin-bottom:8px">عرّف رقم كل حوشة ومساحتها لكل موقع — تظهر تلقائياً عند توريد الفراولة (من الملك) لمتابعة إنتاج كل حوشة ولتقارير إنتاجية الفدان.</div>${locBlocks}</div></div>
+   <div class="card" id="set_carton"><div class="card-h">⚖️ وزن الكرتونة (لحساب الإنتاجية)</div><div class="card-b" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+     <div style="flex:1;min-width:200px">وزن الكرتونة الحالى: <b style="color:#2e6df0;font-size:18px">${numf(App.cartonWeight())} كجم</b> <span class="hint">— يُضرب فى عدد الكراتين لحساب كمية الكجم فى تقارير الإنتاجية</span></div>
+     <button class="btn blue" onclick="App.setCartonWeight()">⚖️ تغيير وزن الكرتونة</button></div></div>`;
+  return html+extra;};})();
+
+/* ---- تقارير الإنتاجية ---- */
+App._prodBuild=function(filterLoc){const s=this.db.season;const cw=this.cartonWeight();
+  const sup=(this.db.daily||[]).filter(e=>e.season===s&&e.kind==="supply");
+  const byLoc={},byHosha={},byVar={},byLocVar={};
+  sup.forEach(e=>{const cr=e.cropId?this.cropById(e.cropId):(e.locId?{loc:this.locById(e.locId)}:null);const loc=cr&&cr.loc;const locId=loc?loc.id:(e.locId||"_none");
+    if(filterLoc&&locId!==filterLoc)return;
+    const t=this.strawTotals(e.straw||{});const kg=(t.cartonQty||0)*cw+(t.localQty||0);
+    // byLoc
+    const L=byLoc[locId]||(byLoc[locId]={locId,name:loc?loc.name:"بدون موقع",kg:0,cartons:0,localKg:0,area:loc?(Number(loc.totalArea)||0):0});
+    L.kg+=kg;L.cartons+=t.cartonQty||0;L.localKg+=t.localQty||0;
+    // byHosha
+    if(e.hosha){const hk=locId+"|"+e.hosha;const hdef=(this.db.hoshas||[]).find(h=>h.locId===locId&&h.no===e.hosha);
+      const H=byHosha[hk]||(byHosha[hk]={locId,locName:loc?loc.name:"—",no:e.hosha,kg:0,cartons:0,area:hdef?(Number(hdef.area)||0):0,variety:hdef?hdef.variety:''});
+      H.kg+=kg;H.cartons+=t.cartonQty||0;}
+    // byVar — carton pseudo-varieties + local named varieties
+    const addVar=(name,q)=>{if(q<=0)return;byVar[name]=(byVar[name]||0)+q;const lv=locId+"||"+name;byLocVar[lv]=byLocVar[lv]||{locId,locName:loc?loc.name:'—',variety:name,kg:0};byLocVar[lv].kg+=q;};
+    addVar("كرتون عربى",(t.cartonArabi? (Number(e.straw.cartonArabi&&e.straw.cartonArabi.qty)||0)*cw :0));
+    addVar("كرتون تصدير",(Number(e.straw.cartonExport&&e.straw.cartonExport.qty)||0)*cw);
+    (e.straw&&e.straw.local||[]).forEach(l=>{const nm=this.varName(l.varId)||"محلى";addVar(nm,Number(l.qty)||0);});
+  });
+  return {byLoc:Object.values(byLoc),byHosha:Object.values(byHosha),byVar,byLocVar:Object.values(byLocVar)};};
+
+App._barChart=function(data,opts){opts=opts||{};const max=Math.max(1,...data.map(d=>d.v));const w=opts.w||560;const bh=28;const gap=10;const h=data.length*(bh+gap)+10;
+  const colors=["#2e6df0","#1f9d57","#e0a92e","#7c4dff","#e0455e","#12a3a3","#d9822b","#ec4899","#0ea5e9","#f59e0b"];
+  let bars=data.map((d,i)=>{const bw=Math.max(2,(d.v/max)*(w-180));const y=i*(bh+gap)+6;const c=colors[i%colors.length];
+    return `<g><rect x="150" y="${y}" width="${bw}" height="${bh}" rx="6" fill="${c}"></rect>
+      <text x="144" y="${y+bh/2+5}" text-anchor="end" font-size="12" font-weight="700" fill="#0e2536">${esc((d.label||'').slice(0,18))}</text>
+      <text x="${150+bw+6}" y="${y+bh/2+5}" font-size="11.5" font-weight="800" fill="#0e2536">${opts.fmt?opts.fmt(d.v):numf(d.v)}</text></g>`;}).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;max-width:${w}px;height:auto">${bars}</svg>`;};
+
+App._prodLoc="";
+Pages.hoshareports=function(){App._ensureHosha();const f=App._prodLoc||"";const d=App._prodBuild(f);
+  const cw=App.cartonWeight();
+  const locOpts=`<option value="">🌍 كل المواقع</option>`+App.db.locations.map(l=>`<option value="${l.id}" ${f===l.id?'selected':''}>${esc(l.name)}</option>`).join("");
+  const totKg=d.byLoc.reduce((s,l)=>s+l.kg,0);const totArea=d.byLoc.reduce((s,l)=>s+l.area,0);const totCartons=d.byLoc.reduce((s,l)=>s+l.cartons,0);
+  // locations comparison chart
+  const locChart=App._barChart(d.byLoc.slice().sort((a,b)=>b.kg-a.kg).map(l=>({label:l.name,v:l.kg})),{fmt:v=>numf(v)+" كجم"});
+  const varArr=Object.keys(d.byVar).map(k=>({label:k,v:d.byVar[k]})).sort((a,b)=>b.v-a.v);
+  const varChart=App._barChart(varArr,{fmt:v=>numf(v)+" كجم"});
+  return head("📊","تقارير إنتاجية الحوش والمواقع","إنتاج الفدان لكل موقع وحوشة وصنف — الكراتين محسوبة بوزن الكرتونة ("+numf(cw)+" كجم)",
+    `<select onchange="App._prodLoc=this.value;App.render()" style="padding:7px 12px;border-radius:9px;border:1px solid #d6dee5;font-weight:700">${locOpts}</select><button class="btn gh sm" onclick="App.hoshaReportPrint()">🖨️ طباعة</button><button class="btn gh sm" onclick="App.hoshaReportXLS()">📊 Excel</button>`)+`
+   <div class="grid kpis" style="margin-bottom:14px">
+    ${kpi("إجمالى الإنتاج",numf(totKg)+" كجم",numf(totCartons)+" كرتونة",'g','🍓')}
+    ${kpi("إجمالى المساحة",numf(totArea)+" فدان","المواقع المختارة",'b','🗺️')}
+    ${kpi("إنتاجية الفدان",totArea>0?numf(totKg/totArea)+" كجم":"—","متوسط الفدان",'gold','📈')}
+    ${kpi("عدد الحوش المنتجة",d.byHosha.length,"حوشة لها إنتاج",'p','🧩')}
+   </div>
+   <div class="two">
+    <div class="card"><div class="card-h">🗺️ إنتاجية المواقع (الفدان)</div><div class="card-b p0"><div class="tw">
+     <table class="t"><thead><tr><th class="r">الموقع</th><th>الكمية (كجم)</th><th>الكراتين</th><th>المساحة (ف)</th><th>إنتاجية الفدان</th></tr></thead><tbody>
+     ${d.byLoc.sort((a,b)=>b.kg-a.kg).map(l=>`<tr><td class="r"><b>${esc(l.name)}</b></td><td class="num">${numf(l.kg)}</td><td class="num">${numf(l.cartons)}</td><td class="num">${numf(l.area)}</td><td class="num"><b style="color:var(--green)">${l.area>0?numf(l.kg/l.area):'—'}</b></td></tr>`).join("")||`<tr><td colspan="5" class="empty">لا بيانات توريد</td></tr>`}
+     </tbody></table></div></div></div>
+    <div class="card"><div class="card-h">📊 مقارنة إنتاج المواقع</div><div class="card-b">${d.byLoc.length?locChart:'<div class="empty">لا بيانات</div>'}</div></div>
+   </div>
+   <div class="card"><div class="card-h">🧩 إنتاجية الحوش (الفدان لكل حوشة)</div><div class="card-b p0"><div class="tw">
+    <table class="t"><thead><tr><th class="r">الموقع</th><th>الحوشة</th><th>الصنف</th><th>الكمية (كجم)</th><th>الكراتين</th><th>المساحة (ف)</th><th>إنتاجية الفدان</th></tr></thead><tbody>
+    ${d.byHosha.sort((a,b)=>(b.area>0?b.kg/b.area:0)-(a.area>0?a.kg/a.area:0)).map(h=>`<tr><td class="r">${esc(h.locName)}</td><td><b>حوشة ${esc(h.no)}</b></td><td>${esc(h.variety||'—')}</td><td class="num">${numf(h.kg)}</td><td class="num">${numf(h.cartons)}</td><td class="num">${numf(h.area)}</td><td class="num"><b style="color:var(--green)">${h.area>0?numf(h.kg/h.area):'—'}</b></td></tr>`).join("")||`<tr><td colspan="7" class="empty">لا توريدات مرتبطة بحوش — اكتب رقم الحوشة عند التوريد</td></tr>`}
+    </tbody></table></div></div></div>
+   <div class="two">
+    <div class="card"><div class="card-h">🍓 إنتاجية الأصناف (مقارنة)</div><div class="card-b p0"><div class="tw">
+     <table class="t"><thead><tr><th class="r">الصنف</th><th>الكمية (كجم)</th><th>النسبة</th></tr></thead><tbody>
+     ${varArr.map(v=>`<tr><td class="r"><b>${esc(v.label)}</b></td><td class="num">${numf(v.v)}</td><td class="num">${totKg>0?((v.v/totKg)*100).toFixed(1)+'٪':'—'}</td></tr>`).join("")||`<tr><td colspan="3" class="empty">لا بيانات</td></tr>`}
+     </tbody></table></div></div></div>
+    <div class="card"><div class="card-h">📊 مقارنة الأصناف</div><div class="card-b">${varArr.length?varChart:'<div class="empty">لا بيانات</div>'}</div></div>
+   </div>`;};
+Pages.hoshareports.meta={title:"تقارير الإنتاجية",crumb:"التقارير"};
+
+App.hoshaReportPrint=function(){const d=App._prodBuild(App._prodLoc||"");const totKg=d.byLoc.reduce((s,l)=>s+l.kg,0);const totArea=d.byLoc.reduce((s,l)=>s+l.area,0);
+  let body=`<h3>إنتاجية المواقع</h3><table><thead><tr><th>الموقع</th><th>كجم</th><th>كراتين</th><th>المساحة (ف)</th><th>إنتاجية الفدان</th></tr></thead><tbody>`;
+  d.byLoc.sort((a,b)=>b.kg-a.kg).forEach(l=>body+=`<tr><td style="text-align:right">${esc(l.name)}</td><td>${numf(l.kg)}</td><td>${numf(l.cartons)}</td><td>${numf(l.area)}</td><td>${l.area>0?numf(l.kg/l.area):'—'}</td></tr>`);
+  body+=`<tr style="font-weight:900;background:#f1f5f9"><td style="text-align:right">الإجمالى</td><td>${numf(totKg)}</td><td></td><td>${numf(totArea)}</td><td>${totArea>0?numf(totKg/totArea):'—'}</td></tr></tbody></table>`;
+  body+=`<h3 style="margin-top:16px">إنتاجية الحوش</h3><table><thead><tr><th>الموقع</th><th>الحوشة</th><th>كجم</th><th>المساحة</th><th>إنتاجية الفدان</th></tr></thead><tbody>`;
+  d.byHosha.forEach(h=>body+=`<tr><td style="text-align:right">${esc(h.locName)}</td><td>${esc(h.no)}</td><td>${numf(h.kg)}</td><td>${numf(h.area)}</td><td>${h.area>0?numf(h.kg/h.area):'—'}</td></tr>`);
+  body+=`</tbody></table><h3 style="margin-top:16px">إنتاجية الأصناف</h3><table><thead><tr><th>الصنف</th><th>كجم</th></tr></thead><tbody>`;
+  Object.keys(d.byVar).sort((a,b)=>d.byVar[b]-d.byVar[a]).forEach(k=>body+=`<tr><td style="text-align:right">${esc(k)}</td><td>${numf(d.byVar[k])}</td></tr>`);
+  body+=`</tbody></table>`;
+  this.printDoc("تقرير إنتاجية الحوش والمواقع",body,"وزن الكرتونة "+numf(this.cartonWeight())+" كجم · موسم "+this.db.season);};
+App.hoshaReportXLS=function(){const d=App._prodBuild(App._prodLoc||"");
+  const r1=this.xlsxHeaderRows("إنتاجية المواقع",5);r1.push(["الموقع","كجم","كراتين","المساحة","إنتاجية الفدان"].map(h=>({v:h,s:"hdr"})));
+  d.byLoc.forEach(l=>r1.push([{v:l.name,s:"txt"},{v:l.kg,s:"num"},{v:l.cartons,s:"num"},{v:l.area,s:"num"},{v:l.area>0?l.kg/l.area:0,s:"num"}]));
+  const r2=this.xlsxHeaderRows("إنتاجية الحوش",5);r2.push(["الموقع","الحوشة","كجم","المساحة","إنتاجية الفدان"].map(h=>({v:h,s:"hdr"})));
+  d.byHosha.forEach(h=>r2.push([{v:h.locName,s:"txt"},{v:h.no,s:"txt"},{v:h.kg,s:"num"},{v:h.area,s:"num"},{v:h.area>0?h.kg/h.area:0,s:"num"}]));
+  const r3=this.xlsxHeaderRows("إنتاجية الأصناف",2);r3.push(["الصنف","كجم"].map(h=>({v:h,s:"hdr"})));
+  Object.keys(d.byVar).forEach(k=>r3.push([{v:k,s:"txt"},{v:d.byVar[k],s:"num"}]));
+  this.exportXLS("تقارير_الإنتاجية",[{name:"المواقع",rows:r1,widths:[24,12,12,12,14]},{name:"الحوش",rows:r2,widths:[20,14,12,12,14]},{name:"الأصناف",rows:r3,widths:[24,14]}]);};
+
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);
+  if(!have.hoshareports)PERMS.push(["hoshareports","📊 تقارير إنتاجية الحوش والمواقع"]);})();
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="loccomp");const at=i>=0?i+1:arr.length;arr.splice(at,0,["hoshareports","📊","تقارير إنتاجية الحوش"]);
+  return arr;};})();
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5) العمليات المباشرة على التكاليف — صفحة تشبه شيت الإكسيل
+      يمين: تكاليف الملك · يسار: تكاليف مشتركة مع الشركاء · لكل بند (+) و«كشف»
+   ══════════════════════════════════════════════════════════════════════════ */
+App._directLoc="";
+/* إجمالى بند مصروف على موقع (سطر المصروف الأساسى فقط — بدون أنصبة الشركاء المرحّلة للملك) */
+App._expTypeLocPosts=function(etId,locId){const own=this.ownerAcct().id;
+  return this.seasonPosts().filter(p=>p.expTypeId===etId&&p.locId===locId&&p.credit!==own&&(+p.amount||0)>0);};
+App._expTypeLocTotal=function(etId,locId){return this._expTypeLocPosts(etId,locId).reduce((s,p)=>s+(+p.amount||0),0);};
+
+Pages.directops=function(){const d=App.db;if(!d.locations.length){return head("⚡","العمليات المباشرة على التكاليف","")+`<div class="card"><div class="card-b" style="padding:30px;text-align:center"><div style="font-size:40px">🗺️</div><div style="font-weight:800;margin:8px 0">أضف موقعاً أولاً من الإعدادات</div><button class="btn gold" onclick="App.go('settings')">⚙️ الإعدادات</button></div></div>`;}
+  if(!App._directLoc)App._directLoc=d.locations[0].id;
+  const loc=App.locById(App._directLoc)||d.locations[0];
+  const ownArea=App.locOwnArea(loc),totArea=Number(loc.totalArea)||0,partArea=App.locPartnerArea(loc);
+  const ownerTypes=d.expenseTypes.filter(e=>e.kind==='owner'||e.kind==='general');
+  const sharedTypes=d.expenseTypes.filter(e=>e.kind==='shared'||e.kind==='special');
+  const locOpts=d.locations.map(l=>`<option value="${l.id}" ${l.id===App._directLoc?'selected':''}>${esc(l.name)} (${numf(Number(l.totalArea)||0)} ف)</option>`).join("");
+  const sideTable=(types,side,area,title,grad,ic)=>{let tot=0;
+    const rows=types.map(et=>{const v=App._expTypeLocTotal(et.id,loc.id);tot+=v;const perF=area>0?v/area:0;
+      return `<tr>
+        <td class="r"><b>${esc(et.name)}</b></td>
+        <td class="num">${v>0?money(v):'<span style="color:#cbd5e1">0.00</span>'}</td>
+        <td class="num" style="color:#2e6df0">${perF>0?money(perF):'—'}</td>
+        <td style="white-space:nowrap;text-align:center">
+          <button class="btn green sm" title="إضافة عملية/تكلفة" onclick="App.directAdd('${et.id}','${side}')">＋</button>
+          <button class="btn gh sm" title="كشف الحركات" onclick="App.directStatement('${et.id}','${side}')">📄</button>
+        </td></tr>`;}).join("");
+    return `<div class="card" style="overflow:hidden">
+      <div class="card-h" style="background:${grad};color:#fff;font-size:14px">${ic} ${title} <span class="act" style="color:#fff;font-weight:800">${numf(area)} فدان</span></div>
+      <div class="card-b p0"><div class="tw"><table class="t">
+        <thead><tr><th class="r">البند</th><th>المبلغ (ج.م)</th><th>تكلفة الفدان</th><th style="text-align:center">عملية</th></tr></thead>
+        <tbody>${rows||`<tr><td colspan="4" class="empty">لا بنود</td></tr>`}
+        <tr style="font-weight:900;background:#f1f5f9"><td class="r">الإجمالى</td><td class="num">${money(tot)}</td><td class="num" style="color:#2e6df0">${area>0?money(tot/area):'—'}</td><td></td></tr>
+        </tbody></table></div></div></div>`;};
+  const ownerTot=ownerTypes.reduce((s,et)=>s+App._expTypeLocTotal(et.id,loc.id),0);
+  const sharedTot=sharedTypes.reduce((s,et)=>s+App._expTypeLocTotal(et.id,loc.id),0);
+  const grand=ownerTot+sharedTot;
+  return head("⚡","العمليات المباشرة على التكاليف","سجّل أى تكلفة مباشرة على الموقع بضغطة — تنعكس فوراً فى كل الحسابات وقائمة الدخل وموقف المواقع",
+    `<select onchange="App._directLoc=this.value;App.render()" style="padding:8px 12px;border-radius:9px;border:1px solid #d6dee5;font-weight:800;font-size:13.5px">${locOpts}</select><button class="btn gh sm" onclick="App.directPrint()">🖨️ طباعة</button>`)+`
+   <div class="grid kpis" style="margin-bottom:12px">
+    ${kpi("إجمالى تكاليف الموقع",m2(grand),loc.name,'r','🧮')}
+    ${kpi("تكاليف الملك",m2(ownerTot),numf(ownArea)+" فدان ملك",'b','🏠')}
+    ${kpi("تكاليف مشتركة",m2(sharedTot),numf(totArea)+" فدان كامل",'gold','🤝')}
+    ${kpi("متوسط تكلفة الفدان",totArea>0?m2(grand/totArea):"—","للموقع كله",'g','📈')}
+   </div>
+   <div class="hint" style="margin-bottom:12px;padding:10px;background:rgba(46,109,240,.07);border-radius:10px;line-height:1.8">💡 اضغط <b style="color:var(--green)">＋</b> بجوار أى بند لتسجيل عملية/تكلفة عليه — يُنشأ القيد تلقائياً (الملك ١٠٠٪ للبنود الخاصة بالملك، أو ٥٠/٥٠ للبنود المشتركة مع الشركاء). اضغط <b>📄</b> لعرض كل حركات البند والتعديل عليها.</div>
+   <div class="two" style="align-items:start">
+    ${sideTable(ownerTypes,'own',ownArea,'تكاليف الملك (طرف أول)','linear-gradient(135deg,#1747a8,#0e2536)','🏠')}
+    ${sideTable(sharedTypes,'shared',totArea,'تكاليف مشتركة مع الشركاء','linear-gradient(135deg,#c98f1e,#8a5a0c)','🤝')}
+   </div>`;};
+Pages.directops.meta={title:"العمليات المباشرة على التكاليف",crumb:"النشاط الزراعي"};
+
+/* ＋ تسجيل عملية/تكلفة مباشرة على بند */
+App.directAdd=function(etId,side,pre){if(App._roBlock("تسجيل عملية تكلفة"))return;const loc=App.locById(App._directLoc);if(!loc){toast("اختر موقعاً","err");return;}
+  const et=this.db.expenseTypes.find(x=>x.id===etId);const mc=this.mainCrop(loc);
+  const src=this.accountSelect(["treasury","custody","bank","supplier","extstraw"]);
+  const parts=side==='own'
+    ?`<option value="own" selected>🏠 على الملك ١٠٠٪</option>`
+    :`<option value="partner" selected>🤝 مشترك ٥٠/٥٠ مع الشركاء</option><option value="own">🏠 على الملك فقط</option><option value="special">👤 على شريك معيّن فقط</option>`;
+  const partnerOpts=(loc.partners||[]).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  this.modal("➕ عملية على بند: "+esc(et?et.name:''),`<div class="fg">
+    <div class="field"><label>الموقع</label><input value="${esc(loc.name)}" disabled></div>
+    <div class="field"><label>التاريخ</label><input type="date" id="doDate" value="${pre?esc(pre.date):todayISO()}"></div>
+    <div class="field"><label>المبلغ (ج.م)</label><input type="number" step="0.01" id="doAmt" value="${pre?esc(pre.amount):''}" style="font-weight:800" autofocus></div>
+    <div class="field"><label>رقم المستند</label><input id="doDoc" value="${pre?esc(pre.doc||''):''}"></div>
+    <div class="field" style="grid-column:span 2"><label>البيان / الوصف</label><input id="doDesc" value="${pre?esc(pre.desc||''):''}" placeholder="مثال: ${esc(et?et.name:'تكلفة')} — ${esc(loc.name)}"></div>
+    <div class="field"><label>التحميل</label><select id="doPart" onchange="App._doPartChange()">${parts}</select></div>
+    <div class="field" id="doPartnerWrap" style="display:none"><label>الشريك</label><select id="doPartner">${partnerOpts}</select></div>
+    <div class="field" style="grid-column:span 2"><label>مصدر السداد / صرف من</label><select id="doSrc">${src}</select></div>
+   </div>
+   <div class="hint" style="margin-top:6px;padding:8px;background:rgba(30,134,89,.08);border-radius:8px">القيد: مدين على التكلفة (${esc(et?et.name:'')}) للموقع ${esc(loc.name)} ودائن على مصدر السداد. ${side==='shared'?'المشترك: نصف القيمة يُرحّل للشركاء.':'على الملك ١٠٠٪.'}</div>`,
+   `<button class="btn green" id="doS">💾 حفظ العملية</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  this._directCtx={etId,side};$("#doS").onclick=()=>this._directSave();};
+App._doPartChange=function(){const v=($("#doPart")||{}).value;const w=$("#doPartnerWrap");if(w)w.style.display=v==='special'?'':'none';};
+App._directSave=function(){const ctx=this._directCtx||{};const loc=App.locById(App._directLoc);const et=this.db.expenseTypes.find(x=>x.id===ctx.etId);
+  const date=$("#doDate").value;const amount=Number($("#doAmt").value)||0;const doc=$("#doDoc").value.trim();const desc=$("#doDesc").value.trim()||((et?et.name:"تكلفة")+" — "+loc.name);
+  const part=$("#doPart").value;const source=$("#doSrc").value;const partnerId=part==='special'?($("#doPartner")||{}).value:null;
+  if(!amount){toast("أدخل المبلغ","err");return;}if(!source){toast("اختر مصدر السداد","err");return;}
+  const mc=this.mainCrop(loc);const grp=uid();
+  this.postExpense({date,doc,desc,amount,source,cropId:mc?mc.id:null,locId:loc.id,part,expTypeId:ctx.etId,partnerId,kind:"expense",meta:{directOp:1,grp,side:ctx.side}});
+  this.save();this.closeModal();this.render();toast("✅ تم تسجيل العملية — انعكست فى كل الحسابات");};
+
+/* 📄 كشف حركات بند على موقع */
+App.directStatement=function(etId,side){const loc=App.locById(App._directLoc);const et=this.db.expenseTypes.find(x=>x.id===etId);
+  const posts=this._expTypeLocPosts(etId,loc.id).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const tot=posts.reduce((s,p)=>s+(+p.amount||0),0);
+  const rows=posts.map(p=>{const srcA=this.acct(p.credit);const direct=p.meta&&p.meta.directOp;const grp=p.meta&&p.meta.grp;
+    return `<tr>
+      <td>${esc(fmtDate(p.date))}</td>
+      <td>${esc(p.doc||'—')}</td>
+      <td class="r">${esc(p.desc||'—')}</td>
+      <td>${esc(srcA?srcA.name:'—')}</td>
+      <td class="num"><b>${money(p.amount)}</b></td>
+      <td style="white-space:nowrap;text-align:center">${direct?`<button class="ib" title="تعديل" onclick="App.directEdit('${grp}','${etId}','${side}')">✏️</button><button class="ib" title="حذف" onclick="App.directDel('${grp}','${etId}','${side}')">🗑️</button>`:`<button class="btn gh sm" onclick="App.closeModal();App.go('statement',{id:'${p.credit}'})" title="من فاتورة/مصدر آخر — افتح الكشف">🔗 المصدر</button>`}</td>
+    </tr>`;}).join("");
+  this.modal("📄 كشف بند: "+esc(et?et.name:'')+" — "+esc(loc.name),`
+    <div class="grid kpis" style="margin-bottom:10px">
+     ${kpi("إجمالى البند",m2(tot),posts.length+" حركة",'r','🧮')}
+     ${kpi("تكلفة الفدان",(side==='own'?App.locOwnArea(loc):Number(loc.totalArea)||0)>0?m2(tot/(side==='own'?App.locOwnArea(loc):Number(loc.totalArea)||0)):"—","",'b','📈')}
+    </div>
+    <div class="tw"><table class="t"><thead><tr><th>التاريخ</th><th>المستند</th><th class="r">البيان</th><th>المصدر</th><th>المبلغ</th><th style="text-align:center">إجراء</th></tr></thead>
+     <tbody>${rows||`<tr><td colspan="6" class="empty">لا حركات على هذا البند — اضغط ＋ لإضافة عملية</td></tr>`}</tbody></table></div>`,
+   `<button class="btn green" onclick="App.closeModal();App.directAdd('${etId}','${side}')">＋ عملية جديدة</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);};
+App._directDelGroup=function(grp){if(!grp)return;this.db.postings=(this.db.postings||[]).filter(p=>!(p.meta&&p.meta.grp===grp));};
+App.directDel=function(grp,etId,side){this.confirmDel("حذف هذه العملية وكل قيودها؟",()=>{this._directDelGroup(grp);this.save();this.closeModal();this.render();if(etId)App.directStatement(etId,side);toast("تم الحذف");});};
+App.directEdit=function(grp,etId,side){const own=this.ownerAcct().id;
+  const main=(this.db.postings||[]).find(p=>p.meta&&p.meta.grp===grp&&p.credit!==own);
+  if(!main){toast("تعذّر إيجاد العملية","err");return;}
+  const pre={date:main.date,amount:main.amount,doc:main.doc,desc:main.desc};
+  // لو جزء منها أنصبة شركاء، المبلغ الأساسى هو سطر الملك (الأكبر الذى يَدين الملك)؛ نأخذ السطر غير المرحّل للملك كأساس
+  this._directDelGroup(grp);this.save();this.closeModal();this.directAdd(etId,side,pre);};
+
+App.directPrint=function(){const loc=App.locById(App._directLoc);if(!loc)return;const d=App.db;
+  const ownerTypes=d.expenseTypes.filter(e=>e.kind==='owner'||e.kind==='general');
+  const sharedTypes=d.expenseTypes.filter(e=>e.kind==='shared'||e.kind==='special');
+  const ownArea=App.locOwnArea(loc),totArea=Number(loc.totalArea)||0;
+  const sec=(types,area,title)=>{let tot=0;let b=`<h3>${title} — ${numf(area)} فدان</h3><table><thead><tr><th>البند</th><th>المبلغ</th><th>تكلفة الفدان</th></tr></thead><tbody>`;
+    types.forEach(et=>{const v=App._expTypeLocTotal(et.id,loc.id);if(!v)return;tot+=v;b+=`<tr><td style="text-align:right">${esc(et.name)}</td><td>${money(v)}</td><td>${area>0?money(v/area):'—'}</td></tr>`;});
+    b+=`<tr style="font-weight:900;background:#f1f5f9"><td style="text-align:right">الإجمالى</td><td>${money(tot)}</td><td>${area>0?money(tot/area):'—'}</td></tr></tbody></table>`;return b;};
+  const body=sec(ownerTypes,ownArea,"تكاليف الملك (طرف أول)")+sec(sharedTypes,totArea,"تكاليف مشتركة مع الشركاء");
+  this.printDoc("العمليات المباشرة على التكاليف — "+loc.name,body,"موسم "+this.db.season);};
+
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);
+  if(!have.directops)PERMS.push(["directops","⚡ العمليات المباشرة على التكاليف"]);})();
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="partners");const at=i>=0?i+1:arr.length;arr.splice(at,0,["directops","⚡","العمليات المباشرة على التكاليف"]);
+  return arr;};})();
+
+/* نهاية حزمة تطويرات المتحدة v2 */
+
 App.boot();
 </script>
 </body>
