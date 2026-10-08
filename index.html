@@ -17220,6 +17220,71 @@ App.doLogin=function(){
 
 /* نهاية حزمة المتحدة v9 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v10 — موردو ومواقع التجميد (من الملف الكامل)               ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+App.IQF_SUP_2025=[
+  {sheet:"موقع 1",kind:"loc",total:4004498,pay:0,rem:4004498,vars:{}},
+  {sheet:"موقع 3",kind:"loc",total:3747786,pay:0,rem:3747786,vars:{}},
+  {sheet:"موقع 4",kind:"loc",total:2166790,pay:0,rem:2166790,vars:{}},
+  {sheet:"موقع 5",kind:"loc",total:4143326,pay:0,rem:4143326,vars:{}},
+  {sheet:"عماد طايل",kind:"sup",total:500526,pay:0,rem:500526,vars:{"فستيفال":{q:13435,a:342471},"فورتونا":{q:18,a:432},"فيليستى":{q:1290,a:24068},"سانسيشن":{q:1753,a:34942},"فرزة":{q:6846,a:98613}}},
+  {sheet:"محمد حسين",kind:"sup",total:779504,pay:0,rem:779504,vars:{"فستيفال":{q:14148,a:295334},"سانسيشن":{q:30382,a:428042},"فرزة":{q:4319,a:56128}}},
+  {sheet:"طاهر عبد الجليل",kind:"sup",total:512348,pay:0,rem:512348,vars:{}},
+  {sheet:"عبد العظيم ابو النصر",kind:"sup",total:544459,pay:0,rem:544459,vars:{}},
+  {sheet:"محمد مدكور",kind:"sup",total:80534,pay:0,rem:80534,vars:{}},
+  {sheet:"محطة اجريكانا",kind:"sup",total:179863.97,pay:0,rem:179863.97,vars:{}},
+  {sheet:"ايمن معوض",kind:"sup",total:936936,pay:0,rem:936936,vars:{}},
+  {sheet:"ابو الحديد",kind:"sup",total:24115.84,pay:0,rem:24115.84,vars:{}},
+  {sheet:"الكاش",kind:"other",total:4692,pay:0,rem:4692,vars:{}},
+  {sheet:"كفر الشيخ المتحدة",kind:"other",total:6744.58,pay:0,rem:0,vars:{"فستيفال":{q:0,a:25072},"فيليستى":{q:0,a:626573.1},"سانسيشن":{q:6859,a:0}}},
+  {sheet:"كارى خام",kind:"other",total:0,pay:211340,rem:0,vars:{"فستيفال":{q:0,a:162188},"فيليستى":{q:0,a:2109717.19},"هادار":{q:0,a:18724},"فرزة":{q:0,a:211505.64}}},
+  {sheet:"توريد مصنع راية فرست تصنيع",kind:"other",total:1940,pay:0,rem:0,vars:{"فستيفال":{q:3152,a:708},"سانسيشن":{q:0,a:111475.2},"فرزة":{q:1295,a:645}}},
+];
+App._ensureIqfSup=function(){if(!Array.isArray(this.db.iqfSup))this.db.iqfSup=[];};
+App.iqfSupRows=function(){this._ensureIqfSup();const s=this.db.season;return (this.db.iqfSup||[]).filter(r=>r.season===s);};
+App.iqfSupLoad=function(){this._ensureIqfSup();const s=this.db.season;
+  if(this.iqfSupRows().length){this.confirmDel("فيه بيانات موردين تجميد بالفعل فى «"+s+"» — إضافة فوقها؟",()=>App._iqfSupDo());return;}
+  this.modal("⬇️ تحميل موردى ومواقع التجميد 2025-2026",`<p style="font-size:14px;line-height:1.9">هيتم تحميل <b>${this.IQF_SUP_2025.length}</b> مورد/موقع بإجمالياتهم (توريد / دفعات / باقى) والتفصيل بالصنف المتاح، وفتح حساب لكل مورد.</p>
+   <div class="hint" style="margin-top:8px;padding:10px;background:rgba(46,109,240,.08);border-radius:8px">الأرقام من الملف الكامل (صف الإجماليات). التفصيل اليومى لكل صنف موجود فى شيتات الملف — نقدر نحمّل شيت معين بالكامل لو حبيت.</div>`,
+   `<button class="btn green" onclick="App._iqfSupDo()">⬇️ تحميل</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._iqfSupDo=function(){this._ensureIqfSup();const s=this.db.season;
+  this.IQF_SUP_2025.forEach(r=>{this.db.iqfSup.push({id:uid(),season:s,sheet:r.sheet,kind:r.kind,total:r.total,pay:r.pay,rem:r.rem,vars:r.vars||{}});
+    if(r.kind==="sup"&&!this.accountsBy("supplier").find(a=>a.name===r.sheet))this.addAccount({node:"supplier",name:r.sheet,cat:"تجميد",data:{iqfSupplier:true}},1);});
+  this.save();this.closeModal();this.render();toast("✅ تم تحميل موردى ومواقع التجميد");};
+App.iqfSupTotals=function(){const rs=this.iqfSupRows();let total=0,pay=0,rem=0;rs.forEach(r=>{total+=+r.total||0;pay+=+r.pay||0;rem+=+r.rem||0;});return {total,pay,rem,n:rs.length};};
+
+Pages.iqfsup=function(){App._ensureIqfSup();const rs=App.iqfSupRows();const T=App.iqfSupTotals();
+  const kindLbl={sup:'<span class="pill n">مورد</span>',loc:'<span class="pill g">موقع (إنتاج)</span>',other:'<span class="pill gold">أخرى</span>'};
+  const grp=(k)=>rs.filter(r=>r.kind===k);
+  const sec=(title,list,ic)=>list.length?`<div class="card"><div class="card-h">${ic} ${title} <span class="act">${list.length}</span></div><div class="card-b p0"><div class="tw">
+     <table class="t"><thead><tr><th class="r">الاسم</th><th>إجمالى التوريد</th><th>المدفوع</th><th>الباقى</th><th>التفصيل بالصنف</th></tr></thead><tbody>
+     ${list.map(r=>{const vk=Object.keys(r.vars||{});return `<tr><td class="r"><b>${esc(r.sheet)}</b></td><td class="num">${money(r.total)}</td><td class="num">${money(r.pay)}</td><td class="num"><b style="color:${r.rem>0?'var(--red)':'var(--green)'}">${money(r.rem)}</b></td>
+       <td>${vk.length?vk.map(v=>`<span class="pill n" style="margin:1px">${esc(v)}: ${numf(r.vars[v].a||r.vars[v].q)}</span>`).join(""):'<span class="hint">—</span>'}</td></tr>`;}).join("")}
+     </tbody></table></div></div></div>`:'';
+  return head("👨‍🌾","موردو ومواقع التجميد","إجماليات التوريد والدفعات والباقى لكل مورد وموقع — موسم "+App.db.season,
+    `<button class="btn blue sm" onclick="App.iqfSupLoad()">⬇️ تحميل 2025-2026</button><button class="btn gh sm" onclick="App.go('iqf')">❄️ تصفية التجميد</button><button class="btn gh sm" onclick="App.iqfSupExport()">📊 Excel</button>`)+`
+   <div class="grid kpis" style="margin-bottom:14px">
+    ${kpi("إجمالى التوريد",m2(T.total),"كل الموردين والمواقع",'b','📦')}
+    ${kpi("إجمالى المدفوع",m2(T.pay),"دفعات",'g','💵')}
+    ${kpi("إجمالى الباقى",m2(T.rem),"مستحق للموردين",'r','🧾')}
+    ${kpi("عدد الحسابات",T.n,"مورد/موقع",'p','👥')}
+   </div>
+   ${rs.length?sec("المواقع (إنتاج الملك/الشركاء)",grp('loc'),'🗺️')+sec("الموردون (مزارعون)",grp('sup'),'👨‍🌾')+sec("حسابات أخرى",grp('other'),'📋'):`<div class="card"><div class="card-b empty" style="padding:40px;text-align:center"><div style="font-size:40px">👨‍🌾</div><div style="font-weight:800;margin:8px 0">لا بيانات</div><button class="btn green" onclick="App.iqfSupLoad()">⬇️ تحميل 2025-2026</button></div></div>`}`;};
+Pages.iqfsup.meta={title:"موردو التجميد",crumb:"اللوجستيات والتصدير"};
+App.iqfSupExport=function(){const rs=this.iqfSupRows();const rows=this.xlsxHeaderRows("موردو ومواقع التجميد — "+this.db.season,5);
+  rows.push(["الاسم","النوع","إجمالى التوريد","المدفوع","الباقى"].map(h=>({v:h,s:"hdr"})));
+  rs.forEach(r=>rows.push([{v:r.sheet,s:"txt"},{v:r.kind==='loc'?'موقع':r.kind==='sup'?'مورد':'أخرى',s:"txt"},{v:r.total,s:"num"},{v:r.pay,s:"num"},{v:r.rem,s:"num"}]));
+  const T=this.iqfSupTotals();rows.push([{v:"الإجمالى",s:"hdr"},{v:"",s:"hdr"},{v:T.total,s:"num"},{v:T.pay,s:"num"},{v:T.rem,s:"num"}]);
+  this.exportXLS("موردو_التجميد",[{name:"الموردون",rows,widths:[24,12,16,14,16]}]);};
+
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);if(!have.iqfsup)PERMS.push(["iqfsup","👨‍🌾 موردو ومواقع التجميد"]);})();
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="iqf");const at=i>=0?i+1:arr.length;if(!arr.some(x=>x[0]==="iqfsup"))arr.splice(at,0,["iqfsup","👨‍🌾","موردو التجميد"]);
+  return arr;};})();
+
+/* نهاية حزمة المتحدة v10 */
+
 App.boot();
 </script>
 </body>
