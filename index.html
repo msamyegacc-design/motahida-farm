@@ -17766,6 +17766,199 @@ Pages.strawsupply.meta={title:"توريد فراولة",crumb:"النشاط ال
 
 /* نهاية حزمة المتحدة v15 */
 
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v16 — أسعار التجميد المتقدمة                               ║
+   ║  • سعر شراء خام/مجهز (للملك والشركاء والموردين الخارجيين) — يوم أو فترة      ║
+   ║  • سعر بيع للمصانع لكل مصنع حسب اليوم والصنف والنوع (خام/مجهز)               ║
+   ║  • إخفاء «تحميل 2025-2026» خارج موسم 2025-2026                              ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* ===== بحث الأسعار (متوافق مع البيانات القديمة) ===== */
+App._ensureIqfP=function(){if(!Array.isArray(this.db.iqfSupPrices))this.db.iqfSupPrices=[];if(!Array.isArray(this.db.iqfFacPrices))this.db.iqfFacPrices=[];};
+
+/* سعر الشراء: حسب النوع (خام/مجهز) — يرجع القيمة الأدق ثم القديمة */
+App.iqfSupPriceRaw=function(date,varId,wtype){const s=this.db.season;wtype=wtype||"";return (this.db.iqfSupPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype);};
+App.iqfSupPrice=function(date,varId,wtype){const s=this.db.season;const arr=this.db.iqfSupPrices||[];wtype=wtype||"";
+  let r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype);
+  if(!r)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId&&!x.wtype);              /* قديم بلا نوع */
+  if(!r&&wtype)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId);                 /* أى نوع */
+  return r?(+r.price||0):0;};
+
+/* سعر البيع للمصنع: حسب المصنع + النوع — يرجع الأدق ثم العام ثم القديم */
+App.iqfFacPriceRaw=function(date,varId,wtype,factoryId){const s=this.db.season;wtype=wtype||"";factoryId=factoryId||"";return (this.db.iqfFacPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype&&(x.factoryId||"")===factoryId);};
+App.iqfFacPrice=function(date,varId,wtype,factoryId){const s=this.db.season;const arr=this.db.iqfFacPrices||[];wtype=wtype||"";factoryId=factoryId||"";let r=null;
+  if(factoryId&&wtype)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.factoryId||"")===factoryId&&(x.wtype||"")===wtype);
+  if(!r&&factoryId)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.factoryId||"")===factoryId&&!x.wtype);
+  if(!r&&wtype)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId&&!x.factoryId&&(x.wtype||"")===wtype);
+  if(!r)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId&&!x.factoryId&&!x.wtype); /* قديم عام */
+  if(!r&&factoryId)r=arr.find(x=>x.season===s&&x.date===date&&x.varId===varId);              /* أى */
+  return r?(+r.price||0):0;};
+
+/* حفظ الأسعار (مع إعادة ترحيل حركات نفس اليوم/الصنف) */
+App.setIqfSupPrice=function(date,varId,p,wtype){this._ensureIqfP();const s=this.db.season;p=+p||0;wtype=wtype||"";
+  let r=(this.db.iqfSupPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype);
+  if(r)r.price=p;else this.db.iqfSupPrices.push({season:s,date,varId,wtype,price:p});
+  (this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.date===date&&e.varId===varId&&this._isSup(e.acctId)).forEach(e=>this._iqfCRepost(e));this.save();};
+App.setIqfFacPrice=function(date,varId,p,wtype,factoryId){this._ensureIqfP();const s=this.db.season;p=+p||0;wtype=wtype||"";factoryId=factoryId||"";
+  let r=(this.db.iqfFacPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype&&(x.factoryId||"")===factoryId);
+  if(r)r.price=p;else this.db.iqfFacPrices.push({season:s,date,varId,wtype,factoryId,price:p});
+  (this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.date===date&&e.varId===varId&&this._isSup(e.acctId)).forEach(e=>this._iqfCRepost(e));this.save();};
+
+/* ===== مساعدات النوع/السعر لحركة ===== */
+App._iqfWt=function(e){return e.wtype||this.iqfSupDateType(e.acctId,e.date);};
+App._iqfFacSale=function(e){return this.iqfFacPrice(e.date,e.varId,this._iqfWt(e),e.factoryId||'');};
+App._iqfSupBuy=function(e){return this.iqfSupPrice(e.date,e.varId,this._iqfWt(e));};
+
+/* ===== إعادة الترحيل: المورد دائن (شراء بالنوع) + المصنع مدين (بيع لكل مصنع) ===== */
+App._iqfCRepost=function(e){
+  if(e.postId){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);e.postId=null;}
+  if(e.postSup){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postSup);e.postSup=null;}
+  if(e.postFac){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postFac);e.postFac=null;}
+  const acc=this.acct(e.acctId);if(!acc)return;const ip=this.exportPrepAcct();const vn=this.iqfCVarName(e.varId);const q=Number(e.qty)||0;const wt=this._iqfWt(e);
+  if(this.iqfClientType(acc)==='fac'){
+    const amt=q*(Number(e.price)||this.iqfFacPrice(e.date,e.varId,wt,e.acctId)||0);if(!amt)return;
+    const p=this.post({date:e.date,desc:"تجميد — تسليم "+acc.name+" / "+vn+" ("+numf(q)+"×"+money(amt/q||0)+")",debit:e.acctId,credit:ip.id,amount:amt,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt}});e.postId=p.id;return;}
+  const supP=this.iqfSupPrice(e.date,e.varId,wt);const facP=this.iqfFacPrice(e.date,e.varId,wt,e.factoryId);
+  const pur=q*supP;const sale=q*facP;
+  if(pur){const p=this.post({date:e.date,desc:"توريد تجميد ("+wt+") — "+acc.name+" / "+vn+" ("+numf(q)+"×"+money(supP)+")"+(e.factoryId?(" → "+((this.acct(e.factoryId)||{}).name||"")):""),debit:ip.id,credit:e.acctId,amount:pur,kind:"supply",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt,side:'pur',factoryId:e.factoryId||null}});e.postSup=p.id;}
+  if(sale&&e.factoryId&&this.acct(e.factoryId)){const fac=this.acct(e.factoryId);const p=this.post({date:e.date,desc:"تجميد ("+wt+") — تسليم "+fac.name+" / "+vn+" (مورد "+acc.name+") ("+numf(q)+"×"+money(facP)+")",debit:e.factoryId,credit:ip.id,amount:sale,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt,side:'sale',supId:e.acctId}});e.postFac=p.id;}
+};
+
+/* قيم صف المورد (شراء/بيع) بالنوع والمصنع */
+App.iqfSupRowValues=function(supId,date){const vars=this.iqfCVars();const wt=this.iqfSupDateType(supId,date);const fac=this.iqfSupDateFactory(supId,date);let qty=0,pur=0,sale=0;
+  vars.forEach(v=>{const e=this.getIqfCEntry(supId,date,v.id);const q=e?e.qty:0;qty+=q;pur+=q*this.iqfSupPrice(date,v.id,wt);sale+=q*this.iqfFacPrice(date,v.id,wt,fac);});return {qty,pur,sale,margin:sale-pur};};
+
+/* سعر الحركة المخزّن يتماشى مع النوع */
+(function(){const orig=App.setIqfSupEntry;App.setIqfSupEntry=function(supId,date,varId,qty,factoryId){const e=orig.apply(this,arguments);if(e){const wt=this._iqfWt(e);e.price=this.iqfSupPrice(date,varId,wt);e.amount=(Number(e.qty)||0)*e.price;this.save(true);}return e;};})();
+
+/* ===== صفحتا الأسعار: نوع (خام/مجهز) + لكل مصنع + تسعير فترة ===== */
+App._iqfPPF=App._iqfPPF||{ptype:"خام"};
+App._iqfFPF=App._iqfFPF||{ptype:"مجهز",facId:""};
+App._iqfPriceCell=function(kind,inp){const d=inp.getAttribute("data-d");const v=inp.getAttribute("data-v");const val=Number(inp.value)||0;
+  const u=this.auth.user;if(!(u&&(u.admin||this.can("cartonEditPrice")))){toast("🔒 ليس لديك صلاحية تعديل الأسعار","err");return;}
+  if(kind==='sup')this.setIqfSupPrice(d,v,val,this._iqfPPF.ptype);
+  else{if(!this._iqfFPF.facId){toast("اختر المصنع أولاً","err");return;}this.setIqfFacPrice(d,v,val,this._iqfFPF.ptype,this._iqfFPF.facId);}
+  toast("✅ تم تحديث السعر");};
+App._iqfPricesPage=function(kind){App._ensureIqfC();App._ensureIqfP();const vars=App.iqfCVars();const dates=App.iqfCDatesList();
+  const isFac=kind==='fac';const st=isFac?App._iqfFPF:App._iqfPPF;const facs=App.iqfClients().filter(x=>App.iqfClientType(x)==='fac');
+  if(isFac&&!st.facId&&facs.length)st.facId=facs[0].id;
+  const getRaw=isFac?(d,v)=>App.iqfFacPriceRaw(d,v,st.ptype,st.facId):(d,v)=>App.iqfSupPriceRaw(d,v,st.ptype);
+  const stName=isFac?'_iqfFPF':'_iqfPPF';
+  const typeChips=["خام","مجهز"].map(t=>`<button class="btn ${st.ptype===t?'gold':'gh'} sm" onclick="App.${stName}.ptype='${t}';App.render()">${t}</button>`).join("");
+  const facSelector=isFac?`<span style="font-weight:800;font-size:12.5px;margin-inline-start:10px">🏭 المصنع:</span><select onchange="App._iqfFPF.facId=this.value;App.render()" style="padding:6px 10px;border-radius:8px;border:1px solid #d6dee5;font-weight:700">${facs.length?facs.map(f=>`<option value="${f.id}" ${f.id===st.facId?'selected':''}>${esc(f.name)}</option>`).join(""):'<option value="">— لا مصانع —</option>'}</select>`:'';
+  const headCols=vars.map(v=>`<th style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const canGrid=!isFac||st.facId;
+  const rows=canGrid&&dates.length?dates.map(d=>`<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(fmtDate(d))}</td>${vars.map(v=>{const r=getRaw(d,v.id);const p=r?(+r.price||0):'';return `<td style="padding:2px"><input type="number" step="0.01" value="${p||''}" data-d="${d}" data-v="${v.id}" placeholder="0" style="width:76px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center" oninput="App._iqfPriceCell('${kind}',this)"></td>`;}).join("")}</tr>`).join(""):`<tr><td colspan="${vars.length+1}" class="empty">${isFac&&!st.facId?'اختر مصنعاً أولاً':'لا أيام — أضف أيام من كشف أى مورد'}</td></tr>`;
+  return head("💲",isFac?"أسعار بيع التجميد (للمصانع)":"أسعار شراء التجميد (من الموردين)",
+    (isFac?"سعر البيع لكل مصنع":"سعر الشراء")+" — "+st.ptype+" · يومى بالصنف أو لفترة — يسمع فوراً فى الحسابات",
+    `<button class="btn blue sm" onclick="App.iqfPricePeriod('${kind}')">📅 تسعير فترة (من–إلى)</button><button class="btn gold sm" onclick="App.iqfCVarManage()">🏷️ الأصناف</button><button class="btn gh sm" onclick="App.go('iqfclients')">↩ العملاء</button>`)+`
+   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+     <span style="font-weight:800;font-size:12.5px">🔎 النوع:</span>${typeChips}${facSelector}
+   </div>
+   <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">💡 ${isFac?'لكل مصنع قائمة أسعار مستقلة حسب اليوم والصنف والنوع (خام/مجهز).':'سعر الشراء حسب النوع (خام/مجهز) — يُطبَّق على الملك والشركاء والموردين الخارجيين.'} أى تعديل يعيد حساب قيم التوريد تلقائياً · استخدم «📅 تسعير فترة» لمدة كاملة دفعة واحدة.</div>
+   <div class="card"><div class="card-b p0"><div class="tw" style="max-height:66vh;overflow:auto"><table class="t"><thead><tr><th style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th>${headCols}</tr></thead><tbody>${rows}</tbody></table></div></div></div>`;};
+Pages.iqfsupprices=function(){return App._iqfPricesPage('sup');};Pages.iqfsupprices.meta={title:"أسعار شراء التجميد",crumb:"عملاء التجميد"};
+Pages.iqffacprices=function(){return App._iqfPricesPage('fac');};Pages.iqffacprices.meta={title:"أسعار بيع التجميد",crumb:"عملاء التجميد"};
+
+/* ===== تسعير فترة (من–إلى) ===== */
+App.iqfPricePeriod=function(kind){const vars=this.iqfCVars();const st=kind==='fac'?this._iqfFPF:this._iqfPPF;const facs=this.iqfClients().filter(x=>this.iqfClientType(x)==='fac');
+  const facRow=kind==='fac'?`<label style="display:block">🏭 المصنع<select id="ppFac" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px">${facs.map(f=>`<option value="${f.id}" ${f.id===st.facId?'selected':''}>${esc(f.name)}</option>`).join("")}</select></label>`:'';
+  this.modal("📅 تسعير فترة — "+(kind==='fac'?'بيع للمصنع':'شراء من الموردين'),`
+    <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">يُطبَّق السعر على كل الأيام المسجّلة داخل المدى. اختر «كل الأصناف» أو صنفاً محدداً.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label style="display:block">من تاريخ<input type="date" id="ppFrom" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+      <label style="display:block">إلى تاريخ<input type="date" id="ppTo" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+      <label style="display:block">الصنف<select id="ppVar" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option value="">كل الأصناف</option>${vars.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join("")}</select></label>
+      <label style="display:block">النوع<select id="ppType" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option ${st.ptype==='خام'?'selected':''}>خام</option><option ${st.ptype==='مجهز'?'selected':''}>مجهز</option></select></label>
+      ${facRow}
+      <label style="display:block">السعر<input type="number" step="0.01" id="ppPrice" placeholder="0.00" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+    </div>`,
+    `<button class="btn green" onclick="App.iqfPricePeriodApply('${kind}')">✅ تطبيق</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);};
+App.iqfPricePeriodApply=function(kind){const g=id=>(document.getElementById(id)||{}).value;
+  const from=g('ppFrom'),to=g('ppTo'),varId=g('ppVar'),type=g('ppType')||'خام',price=Number(g('ppPrice'))||0;const facId=kind==='fac'?g('ppFac'):'';
+  if(!from||!to){toast('حدّد الفترة','err');return;}
+  if(kind==='fac'&&!facId){toast('اختر المصنع','err');return;}
+  const f=new Date(from),t=new Date(to);
+  const dates=this.iqfCDatesList().filter(d=>{const x=new Date(d);return x>=f&&x<=t;});
+  if(!dates.length){toast('لا أيام مسجّلة داخل المدى','err');return;}
+  const vs=varId?[{id:varId}]:this.iqfCVars();let n=0;
+  dates.forEach(d=>vs.forEach(v=>{if(kind==='sup')this.setIqfSupPrice(d,v.id,price,type);else this.setIqfFacPrice(d,v.id,price,type,facId);n++;}));
+  if(kind==='fac')this._iqfFPF.ptype=type;else this._iqfPPF.ptype=type;
+  this.closeModal();toast('✅ تم تسعير '+n+' خلية ('+type+')');this.render();};
+
+/* ===== عرض المصنع: استخدام سعر البيع لكل مصنع ===== */
+App._iqfFacView=function(a){App._ensureIqfC();const F=App._iqfFacF;const b=App.balance(a.id);
+  const ent=App._iqfFacEntries(a.id);
+  const byDate={};ent.forEach(e=>{const facP=App._iqfFacSale(e);byDate[e.date]=byDate[e.date]||{date:e.date,qty:0,amt:0,moves:[]};byDate[e.date].qty+=e.qty;byDate[e.date].amt+=e.qty*facP;byDate[e.date].moves.push(e);});
+  const rows=Object.values(byDate).sort((x,y)=>new Date(x.date)-new Date(y.date));
+  const bySup={};ent.forEach(e=>{const facP=App._iqfFacSale(e);const sup=App.acct(e.acctId);bySup[e.acctId]=bySup[e.acctId]||{name:sup?sup.name:'—',qty:0,amt:0};bySup[e.acctId].qty+=e.qty;bySup[e.acctId].amt+=e.qty*facP;});
+  let TQ=0,TA=0;rows.forEach(r=>{TQ+=r.qty;TA+=r.amt;});
+  const allSups=App.iqfClients().filter(x=>App.iqfClientType(x)==='sup');
+  const typeChips=[["all","الكل"],["خام","خام"],["مجهز","مجهز"],["فرزة","فرزة"]].map(t=>`<button class="btn ${F.type===t[0]?'gold':'gh'} sm" onclick="App._iqfFacF.type='${t[0]}';App.render()">${t[1]}</button>`).join("");
+  return head("🏭","كشف مصنع تجميد — "+a.name,"🏭 مصنع (مستحق لك) · فلتر خام/مجهز ومورد · إجمالى تسليم اليوم مع تفاصيل الحركة (التوريد جاى منين) · السعر حسب هذا المصنع",
+    `<button class="btn green sm" onclick="App.iqfCPay('${a.id}')">💵 تحصيل دفعة</button><button class="btn gold sm" onclick="App.go('iqffacprices')">💲 أسعار هذا المصنع</button><button class="btn gh sm" onclick="App.iqfFacPrint('${a.id}',false)">🖨️ إجمالى</button><button class="btn gh sm" onclick="App.iqfFacPrint('${a.id}',true)">🖨️ تفصيلى</button><button class="btn gh sm" onclick="App.iqfFacExport('${a.id}')">📊 Excel</button><button class="btn gh sm" onclick="App.go('statement',{id:'${a.id}'})">كشف الحساب</button><button class="btn gh sm" onclick="App.go('iqfclients')">↩ العملاء</button>`)+`
+   <div class="grid kpis" style="margin-bottom:12px">
+    ${kpi("إجمالى الكمية الواردة",numf(TQ),F.type==='all'?'':F.type,'g','⚖️')}${kpi("قيمة التسليمات",m2(TA),"بسعر البيع",'gold','📤')}${kpi("المستحق عليه (لك)",m2(Math.abs(b)),"رصيد المصنع",'green','🧾')}${kpi("عدد الموردين",Object.keys(bySup).length,"مصادر التوريد",'p','👥')}
+   </div>
+   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+     <span style="font-weight:800;font-size:12.5px">🔎 النوع:</span>${typeChips}
+     <span style="font-weight:800;font-size:12.5px;margin-inline-start:8px">المورد:</span>
+     <select onchange="App._iqfFacF.supId=this.value;App.render()" style="padding:6px 10px;border-radius:8px;border:1px solid #d6dee5"><option value="">الكل</option>${allSups.map(s=>`<option value="${s.id}" ${F.supId===s.id?'selected':''}>${esc(s.name)}</option>`).join("")}</select>
+   </div>
+   <div class="two" style="align-items:start">
+    <div class="card"><div class="card-h">📅 تسليمات اليوم (اضغط التفاصيل لمعرفة التوريد جاى منين)</div><div class="card-b p0"><div class="tw">
+     <table class="t"><thead><tr><th>التاريخ</th><th>الكمية</th><th>القيمة</th><th></th></tr></thead><tbody>
+     ${rows.length?rows.map(r=>`<tr><td>${esc(fmtDate(r.date))}</td><td class="num"><b>${numf(r.qty)}</b></td><td class="num">${money(r.amt)}</td><td><button class="btn blue sm" onclick="App.iqfFacDay('${a.id}','${r.date}')">🔍 تفاصيل</button></td></tr>`).join(""):`<tr><td colspan="4" class="empty">لا تسليمات — سجّلها من شبكة المورد واختر هذا المصنع</td></tr>`}
+     <tr style="font-weight:900;background:#f1f5f9"><td>الإجمالى</td><td class="num">${numf(TQ)}</td><td class="num">${money(TA)}</td><td></td></tr>
+     </tbody></table></div></div></div>
+    <div class="card"><div class="card-h">👥 شغل المتحدة — حسب المورد</div><div class="card-b p0"><div class="tw">
+     <table class="t"><thead><tr><th class="r">المورد</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>
+     ${Object.values(bySup).length?Object.values(bySup).sort((x,y)=>y.amt-x.amt).map(s=>`<tr><td class="r"><b>${esc(s.name)}</b></td><td class="num">${numf(s.qty)}</td><td class="num">${money(s.amt)}</td></tr>`).join(""):`<tr><td colspan="3" class="empty">—</td></tr>`}
+     </tbody></table></div></div></div>
+   </div>`;};
+
+App.iqfFacDay=function(facId,date){const fac=this.acct(facId);const s=this.db.season;const F=this._iqfFacF;
+  const ent=(this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.factoryId===facId&&e.date===date&&(F.type==="all"||(e.wtype||"مجهز")===F.type)&&(!F.supId||e.acctId===F.supId));
+  let TQ=0,TB=0,TS=0;
+  const rowsH=ent.map(e=>{const sup=this.acct(e.acctId);const supP=this._iqfSupBuy(e);const facP=this._iqfFacSale(e);TQ+=e.qty;TB+=e.qty*supP;TS+=e.qty*facP;
+    return `<tr><td class="r">${esc(sup?sup.name:'—')}</td><td>${esc(this.iqfCVarName(e.varId))}</td><td><span class="pill ${e.wtype==='خام'?'n':'g'}">${esc(e.wtype||'مجهز')}</span></td><td class="num">${numf(e.qty)}</td><td class="num">${money(supP)}</td><td class="num">${money(e.qty*supP)}</td><td class="num">${money(facP)}</td><td class="num"><b>${money(e.qty*facP)}</b></td></tr>`;}).join("");
+  this.modal("🔍 تفاصيل تسليم "+esc(fac?fac.name:'')+" — "+esc(fmtDate(date)),`
+    <div class="grid kpis" style="margin-bottom:10px">${kpi("الكمية",numf(TQ),"",'g','⚖️')}${kpi("قيمة الشراء",m2(TB),"للموردين",'r','📥')}${kpi("قيمة البيع",m2(TS),"على المصنع",'gold','📤')}</div>
+    <div class="tw"><table class="t"><thead><tr><th class="r">المورد (جاى منين)</th><th>الصنف</th><th>النوع</th><th>الكمية</th><th>سعر الشراء</th><th>قيمة الشراء</th><th>سعر البيع</th><th>قيمة البيع</th></tr></thead>
+     <tbody>${rowsH||`<tr><td colspan="8" class="empty">لا حركات</td></tr>`}
+     <tr style="font-weight:900;background:#f1f5f9"><td colspan="3" class="r">الإجمالى</td><td class="num">${numf(TQ)}</td><td></td><td class="num">${money(TB)}</td><td></td><td class="num">${money(TS)}</td></tr>
+     </tbody></table></div>`,
+   `<button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);};
+
+App.iqfFacPrint=function(facId,detailed){const fac=this.acct(facId);const ent=this._iqfFacEntries(facId);const F=this._iqfFacF;
+  let body="";const ttl="كشف مصنع تجميد — "+(fac?fac.name:'')+(F.type!=='all'?(" ("+F.type+")"):"");
+  if(detailed){let TQ=0,TB=0,TS=0;body=`<table><thead><tr><th>التاريخ</th><th>المورد</th><th>الصنف</th><th>النوع</th><th>الكمية</th><th>شراء</th><th>ق.الشراء</th><th>بيع</th><th>ق.البيع</th></tr></thead><tbody>`;
+    ent.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(e=>{const sup=this.acct(e.acctId);const sp=this._iqfSupBuy(e);const fp=this._iqfFacSale(e);TQ+=e.qty;TB+=e.qty*sp;TS+=e.qty*fp;
+      body+=`<tr><td>${esc(fmtDate(e.date))}</td><td style="text-align:right">${esc(sup?sup.name:'—')}</td><td>${esc(this.iqfCVarName(e.varId))}</td><td>${esc(e.wtype||'مجهز')}</td><td>${numf(e.qty)}</td><td>${money(sp)}</td><td>${money(e.qty*sp)}</td><td>${money(fp)}</td><td>${money(e.qty*fp)}</td></tr>`;});
+    body+=`<tr style="font-weight:900;background:#f1f5f9"><td colspan="4">الإجمالى</td><td>${numf(TQ)}</td><td></td><td>${money(TB)}</td><td></td><td>${money(TS)}</td></tr></tbody></table>`;
+  }else{const byDate={};ent.forEach(e=>{const fp=this._iqfFacSale(e);byDate[e.date]=byDate[e.date]||{q:0,a:0};byDate[e.date].q+=e.qty;byDate[e.date].a+=e.qty*fp;});
+    let TQ=0,TA=0;body=`<table><thead><tr><th>التاريخ</th><th>الكمية</th><th>القيمة</th></tr></thead><tbody>`;
+    Object.keys(byDate).sort().forEach(d=>{TQ+=byDate[d].q;TA+=byDate[d].a;body+=`<tr><td>${esc(fmtDate(d))}</td><td>${numf(byDate[d].q)}</td><td>${money(byDate[d].a)}</td></tr>`;});
+    body+=`<tr style="font-weight:900;background:#f1f5f9"><td>الإجمالى</td><td>${numf(TQ)}</td><td>${money(TA)}</td></tr></tbody></table>`;}
+  this.printDoc(ttl,body,(detailed?"تفصيلى — التوريد جاى منين":"إجمالى تسليمات اليوم")+" · موسم "+this.db.season);};
+App.iqfFacExport=function(facId){const fac=this.acct(facId);const ent=this._iqfFacEntries(facId);const rows=this.xlsxHeaderRows("كشف مصنع تجميد — "+((fac&&fac.name)||''),9);
+  rows.push(["التاريخ","المورد","الصنف","النوع","الكمية","سعر الشراء","قيمة الشراء","سعر البيع","قيمة البيع"].map(h=>({v:h,s:"hdr"})));
+  ent.slice().sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach(e=>{const sup=this.acct(e.acctId);const sp=this._iqfSupBuy(e);const fp=this._iqfFacSale(e);
+    rows.push([{v:fmtDate(e.date),s:"txt"},{v:sup?sup.name:'',s:"txt"},{v:this.iqfCVarName(e.varId),s:"txt"},{v:e.wtype||'مجهز',s:"txt"},{v:e.qty,s:"num"},{v:sp,s:"num"},{v:e.qty*sp,s:"num"},{v:fp,s:"num"},{v:e.qty*fp,s:"num"}]);});
+  this.exportXLS("مصنع_"+((fac&&fac.name)||""),[{name:"كشف المصنع",rows,widths:[12,20,12,10,10,12,14,12,14]}]);};
+
+/* ===== إخفاء «تحميل 2025-2026» خارج موسم 2025-2026 ===== */
+(function(){["iqffac","iqfsup","iqf"].forEach(pg=>{const orig=Pages[pg];if(typeof orig!=="function")return;Pages[pg]=function(){let h=orig.apply(this,arguments);
+  if(App.db.season!=="2025-2026"&&typeof h==="string"){
+    h=h.replace(/<button[^>]*onclick="App\.(iqfFacLoad|iqfSupLoad|iqfLoad2025)\(\)"[^>]*>[\s\S]*?<\/button>/g,'');
+    h=h.replace(/«⬇️ تحميل 2025-2026» أو /g,'').replace(/ أو «⬇️ تحميل 2025-2026»/g,'').replace(/«⬇️ تحميل 2025-2026»/g,'');
+  }return h;};});})();
+
+/* نهاية حزمة المتحدة v16 */
+
+
+
 App.boot();
 </script>
 </body>
