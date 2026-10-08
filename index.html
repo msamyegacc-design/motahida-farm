@@ -17356,6 +17356,161 @@ App.iqfFacExport=function(){const rs=this.iqfFacRows();const T=this.iqfFacTotals
   return arr;};})();
 /* نهاية حزمة المتحدة v11 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v12 — عملاء التجميد (تسجيل يومى زى عملاء عربى) + نقل القائمة ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* ======= 0) تأكيد موسم 2025-2026 عند تحميل بيانات التجميد التاريخية ======= */
+App._iqfSeason2025=function(){if(!Array.isArray(this.db.seasons))this.db.seasons=[];
+  if(this.db.seasons.indexOf("2025-2026")<0)this.db.seasons.push("2025-2026");
+  if(this.db.season!=="2025-2026"){this.db.season="2025-2026";}this.save();};
+["_iqfDoLoad","_iqfSupDo","_iqfFacDo"].forEach(fn=>{const orig=App[fn];if(typeof orig==="function")App[fn]=function(){try{App._iqfSeason2025();}catch(e){}return orig.apply(this,arguments);};});
+
+/* ======= 1) عملاء التجميد (موردون + مصانع) — تسجيل يومى بالصنف ======= */
+App.IQF_VARS_DEF=["فستيفال","فورتونا","فيليستى","هادار","سانسيشن","فرزة"];
+App._ensureIqfC=function(){const d=this.db;
+  if(!Array.isArray(d.iqfCVars))d.iqfCVars=[];
+  if(!Array.isArray(d.iqfCEntries))d.iqfCEntries=[];
+  if(!Array.isArray(d.iqfCDates))d.iqfCDates=[];
+  if(!d.iqfCVars.length)this.IQF_VARS_DEF.forEach((n,i)=>d.iqfCVars.push({id:uid(),name:n,order:i}));};
+App.iqfCVars=function(){this._ensureIqfC();return (this.db.iqfCVars||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));};
+App.iqfCVarName=function(id){const v=(this.db.iqfCVars||[]).find(x=>x.id===id);return v?v.name:'—';};
+App.iqfClients=function(){return (this.db.accounts||[]).filter(a=>a.data&&(a.data.iqfClient||a.data.iqfSupplier||(a.node==="factory"&&a.data.iqf)));};
+App.iqfClientType=function(a){if(a.data&&a.data.iqfType)return a.data.iqfType;return a.node==="factory"?"fac":"sup";};
+App.iqfCDatesList=function(){const s=this.db.season;this._ensureIqfC();const set={};
+  (this.db.iqfCDates||[]).filter(x=>x.season===s).forEach(x=>set[x.date]=1);
+  (this.db.iqfCEntries||[]).filter(x=>x.season===s).forEach(x=>set[x.date]=1);
+  return Object.keys(set).sort();};
+App.addIqfCDate=function(date){const s=this.db.season;if(!date)return;if(!(this.db.iqfCDates||[]).some(x=>x.season===s&&x.date===date)){this.db.iqfCDates.push({season:s,date});this.save();}};
+
+App._iqfCRepost=function(e){
+  if(e.postId){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);e.postId=null;}
+  const amt=Number(e.amount)||0;const acc=this.acct(e.acctId);if(!acc||!amt)return;
+  const type=this.iqfClientType(acc);const ip=this.exportPrepAcct();const vn=this.iqfCVarName(e.varId);
+  let p;
+  if(type==="fac"){p=this.post({date:e.date,desc:"تجميد — تسليم "+acc.name+" / "+vn+" ("+numf(e.qty)+"×"+money(e.price)+")",debit:e.acctId,credit:ip.id,amount:amt,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId}});}
+  else{p=this.post({date:e.date,desc:"تجميد — توريد من "+acc.name+" / "+vn+" ("+numf(e.qty)+"×"+money(e.price)+")",debit:ip.id,credit:e.acctId,amount:amt,kind:"supply",meta:{iqfC:1,entry:e.id,varId:e.varId}});}
+  e.postId=p.id;};
+App.getIqfCEntry=function(acctId,date,varId){const s=this.db.season;return (this.db.iqfCEntries||[]).find(x=>x.season===s&&x.acctId===acctId&&x.date===date&&x.varId===varId)||null;};
+App.setIqfCEntry=function(acctId,date,varId,qty,price){this._ensureIqfC();const s=this.db.season;qty=Number(qty)||0;price=Number(price)||0;
+  let e=this.getIqfCEntry(acctId,date,varId);
+  if(!e){if(!qty&&!price)return null;e={id:uid(),season:s,acctId,date,varId,qty,price,amount:qty*price,postId:null};this.db.iqfCEntries.push(e);}
+  else{e.qty=qty;e.price=price;e.amount=qty*price;}
+  this._iqfCRepost(e);
+  if(!qty||!price){if(e.postId)this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);this.db.iqfCEntries=this.db.iqfCEntries.filter(x=>x.id!==e.id);}
+  this.save(true);return e;};
+App.iqfCTotals=function(acctId){const s=this.db.season;let qty=0,amt=0;(this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.acctId===acctId).forEach(e=>{qty+=e.qty;amt+=e.amount;});return {qty,amt};};
+
+/* ----- إدارة الأصناف ----- */
+App.iqfCVarManage=function(){this._ensureIqfC();const vs=this.iqfCVars();
+  this.modal("🏷️ أصناف التجميد",`<div class="tw"><table class="t"><thead><tr><th class="r">الصنف</th><th style="text-align:center"></th></tr></thead><tbody>
+    ${vs.map(v=>`<tr><td class="r"><b>${esc(v.name)}</b></td><td style="text-align:center"><button class="ib" onclick="App.iqfCVarRename('${v.id}')">✏️</button><button class="ib" onclick="App.iqfCVarDel('${v.id}')">🗑️</button></td></tr>`).join("")}
+    </tbody></table></div><div style="display:flex;gap:8px;margin-top:10px"><input id="icvNew" placeholder="صنف جديد" style="flex:1;padding:9px;border:1px solid #d6dee5;border-radius:8px"><button class="btn green" onclick="App.iqfCVarAdd()">＋ إضافة</button></div>`,
+   `<button class="btn gh" onclick="App.closeModal()">إغلاق</button>`);};
+App.iqfCVarAdd=function(){const n=($("#icvNew")||{}).value&&$("#icvNew").value.trim();if(!n){toast("اكتب اسم الصنف","err");return;}this.db.iqfCVars.push({id:uid(),name:n,order:(this.db.iqfCVars||[]).length});this.save();this.iqfCVarManage();toast("✅ أُضيف");};
+App.iqfCVarRename=function(id){const v=(this.db.iqfCVars||[]).find(x=>x.id===id);if(!v)return;const n=prompt("اسم الصنف:",v.name);if(n==null)return;v.name=n.trim()||v.name;this.save();this.iqfCVarManage();};
+App.iqfCVarDel=function(id){this.confirmDel("حذف الصنف وحركاته؟",()=>{(this.db.iqfCEntries||[]).filter(e=>e.varId===id).forEach(e=>{if(e.postId)this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);});this.db.iqfCEntries=(this.db.iqfCEntries||[]).filter(e=>e.varId!==id);this.db.iqfCVars=(this.db.iqfCVars||[]).filter(v=>v.id!==id);this.save();this.iqfCVarManage();toast("تم الحذف");});};
+
+/* ----- إضافة/تعديل عميل تجميد ----- */
+App.iqfClientAdd=function(id){const a=id?this.acct(id):null;const curType=a?this.iqfClientType(a):"sup";
+  const locOpts=`<option value="">— بدون —</option>`+this.db.locations.map(l=>`<option value="${l.id}" ${a&&a.data&&a.data.locId===l.id?'selected':''}>${esc(l.name)}</option>`).join("");
+  this.modal(a?"✏️ تعديل عميل تجميد":"➕ عميل تجميد جديد",`<div class="fg">
+    <div class="field"><label>النوع</label><select id="icN2"><option value="sup" ${curType==='sup'?'selected':''}>👨‍🌾 مورد (مزارع — أنا مدين له)</option><option value="fac" ${curType==='fac'?'selected':''}>🏭 مصنع (أنا دائن عليه)</option></select></div>
+    <div class="field"><label>الاسم</label><input id="icNm" value="${a?esc(a.name):''}" placeholder="مثال: عماد طايل / فودد اليانس"></div>
+    <div class="field"><label>الهاتف</label><input id="icPh" value="${a?esc((a.data&&a.data.phone)||''):''}"></div>
+    <div class="field"><label>الموقع (اختيارى)</label><select id="icLoc">${locOpts}</select></div>
+   </div><div class="hint" style="margin-top:6px">المورد: توريده يُقيَّد دائناً له (مستحق عليك). المصنع: تسليماته تُقيَّد مدينة عليه (مستحق لك). كلاهما يمر على حساب التجميد (IQF).</div>`,
+   `<button class="btn gold" id="icS">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  $("#icS").onclick=()=>{const nm=$("#icNm").value.trim();if(!nm){toast("اكتب الاسم","err");return;}const type=$("#icN2").value;
+    const data={iqfClient:true,iqfType:type,phone:$("#icPh").value.trim(),locId:$("#icLoc").value||null};
+    if(a){a.name=nm;a.data=Object.assign(a.data||{},data);}
+    else{this.addAccount({node:type==='fac'?"factory":"supplier",name:nm,cat:"تجميد",data:data});}
+    this.save();this.closeModal();this.render();toast(a?"تم التعديل ✓":"✅ أُضيف العميل");};};
+
+/* ----- قائمة عملاء التجميد ----- */
+Pages.iqfclients=function(){App._ensureIqfC();const list=App.iqfClients();
+  const sup=list.filter(a=>App.iqfClientType(a)==='sup');const fac=list.filter(a=>App.iqfClientType(a)==='fac');
+  const sec=(title,arr,ic,payLbl)=>`<div class="card"><div class="card-h">${ic} ${title} <span class="act">${arr.length}</span></div><div class="card-b p0"><div class="tw">
+    <table class="t"><thead><tr><th class="r">الاسم</th><th>الكمية</th><th>قيمة الحركات</th><th>${payLbl}</th><th></th></tr></thead><tbody>
+    ${arr.length?arr.map(a=>{const t=App.iqfCTotals(a.id);const b=App.balance(a.id);return `<tr class="linkrow" onclick="App.go('iqfclient',{id:'${a.id}'})"><td class="r"><b>${esc(a.name)}</b></td><td class="num">${numf(t.qty)}</td><td class="num">${money(t.amt)}</td><td class="num" style="color:${b<0?'var(--red)':b>0?'var(--green)':'inherit'}">${money(Math.abs(b))}</td>
+      <td onclick="event.stopPropagation()"><button class="btn blue sm" onclick="App.go('iqfclient',{id:'${a.id}'})">📋 كشف يومى</button><button class="btn gh sm" onclick="App.go('statement',{id:'${a.id}'})">كشف حساب</button><button class="ib" onclick="App.iqfClientAdd('${a.id}')">✏️</button></td></tr>`;}).join(""):`<tr><td colspan="5" class="empty">لا حسابات</td></tr>`}
+    </tbody></table></div></div></div>`;
+  return head("🧊","عملاء التجميد","تسجيل توريد ومصانع التجميد اليومى بالصنف — يسمع فى حسابات الموردين والمصانع · موسم "+App.db.season,
+    `<button class="btn green sm" onclick="App.iqfClientAdd()">＋ عميل جديد</button><button class="btn gold sm" onclick="App.iqfCVarManage()">🏷️ الأصناف</button><button class="btn gh sm" onclick="App.go('iqf')">❄️ التصفية</button>`)+`
+   ${sec("👨‍🌾 الموردون (مزارعون — مدين لهم)",sup,'👨‍🌾','الباقى له')}
+   ${sec("🏭 المصانع (دائن عليهم)",fac,'🏭','المستحق منه')}`;};
+Pages.iqfclients.meta={title:"عملاء التجميد",crumb:"النشاط الزراعي"};
+
+/* ----- كشف يومى لعميل تجميد (زى الإكسيل) ----- */
+App._icd=function(d){return d.replace(/[^0-9]/g,'');};
+Pages.iqfclient=function(){App._ensureIqfC();const id=App.arg&&App.arg.id;const a=id?App.acct(id):null;if(!a){App.go('iqfclients');return '';}
+  const vars=App.iqfCVars();const dates=App.iqfCDatesList();const t=App.iqfCTotals(id);const b=App.balance(id);const type=App.iqfClientType(a);
+  const headCols=vars.map(v=>`<th colspan="3" style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const subCols=vars.map(()=>`<th>الكمية</th><th>السعر</th><th>المبلغ</th>`).join("");
+  const rows=dates.length?dates.map(d=>{const did=App._icd(d);let rq=0,ra=0;
+    const cells=vars.map(v=>{const e=App.getIqfCEntry(id,d,v.id);const q=e?e.qty:0;const pr=e?e.price:0;const am=q*pr;rq+=q;ra+=am;
+      return `<td style="padding:2px"><input type="number" step="0.01" value="${q||''}" data-d="${d}" data-v="${v.id}" data-f="q" style="width:58px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center" oninput="App.iqfCCell('${id}',this)"></td>
+        <td style="padding:2px"><input type="number" step="0.01" value="${pr||''}" data-d="${d}" data-v="${v.id}" data-f="p" style="width:54px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center;color:#64748b" oninput="App.iqfCCell('${id}',this)"></td>
+        <td class="num" id="iam_${did}_${v.id}"><b>${am?money(am):'—'}</b></td>`;}).join("");
+    return `<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(fmtDate(d))}</td>${cells}<td class="num" id="irq_${did}"><b>${rq?numf(rq):'—'}</b></td><td class="num" id="ira_${did}"><b>${ra?money(ra):'—'}</b></td></tr>`;}).join(""):`<tr><td colspan="${vars.length*3+3}" class="empty">لا أيام — اضغط «＋ يوم»</td></tr>`;
+  return head("📋","كشف تجميد يومى — "+a.name,(type==='fac'?'🏭 مصنع (مستحق لك) · ':'👨‍🌾 مورد (مستحق له) · ')+"أدخل الكمية والسعر لكل صنف — المبلغ يُحسب ويسمع فى الحساب",
+    `<button class="btn green sm" onclick="App.iqfCAddDay()">＋ يوم</button><button class="btn blue sm" onclick="App.iqfCPay('${id}')">💵 ${type==='fac'?'تحصيل دفعة':'سداد دفعة'}</button><button class="btn gh sm" onclick="App.go('statement',{id:'${id}'})">كشف الحساب</button><button class="btn gh sm" onclick="App.iqfCExport('${id}')">📊 Excel</button><button class="btn gh sm" onclick="App.go('iqfclients')">↩ العملاء</button>`)+`
+   <div class="grid kpis" style="margin-bottom:12px">
+    ${kpi("إجمالى الكمية",`<span id="ictQ">${numf(t.qty)}</span>`,"",'g','⚖️')}
+    ${kpi("قيمة الحركات",`<span id="ictA">${money(t.amt)}</span>`,"",'gold','💰')}
+    ${kpi(type==='fac'?'المستحق عليه (لك)':'الباقى له (عليك)',m2(Math.abs(b)),"رصيد الحساب",type==='fac'?'g':'r','🧾')}
+   </div>
+   <div class="card"><div class="card-b p0"><div class="tw" style="max-height:66vh;overflow:auto">
+    <table class="t" style="font-size:12px"><thead>
+      <tr><th rowspan="2" style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th>${headCols}<th colspan="2" style="background:#1f9d57;color:#fff">الإجمالى</th></tr>
+      <tr>${subCols}<th>الكمية</th><th>المبلغ</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+   </div></div></div>`;};
+Pages.iqfclient.meta={title:"كشف تجميد يومى",crumb:"عملاء التجميد"};
+App.iqfCAddDay=function(){this.modal("＋ إضافة يوم",`<div class="field"><label>التاريخ</label><input type="date" id="icadD" value="${todayISO()}"></div>`,`<button class="btn green" onclick="App._iqfCAddDayGo()">إضافة</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._iqfCAddDayGo=function(){const d=$("#icadD").value;if(!d){toast("اختر التاريخ","err");return;}this.addIqfCDate(d);this.closeModal();this.render();toast("✅ أُضيف اليوم");};
+App.iqfCCell=function(acctId,inp){const d=inp.getAttribute("data-d");const v=inp.getAttribute("data-v");const did=this._icd(d);
+  const row=inp.closest("tr");const qEl=row.querySelector(`input[data-d="${d}"][data-v="${v}"][data-f="q"]`);const pEl=row.querySelector(`input[data-d="${d}"][data-v="${v}"][data-f="p"]`);
+  const q=Number(qEl.value)||0;const pr=Number(pEl.value)||0;this.setIqfCEntry(acctId,d,v,q,pr);
+  const am=q*pr;const amEl=document.getElementById("iam_"+did+"_"+v);if(amEl)amEl.innerHTML="<b>"+(am?money(am):'—')+"</b>";
+  let rq=0,ra=0;this.iqfCVars().forEach(vr=>{const e=this.getIqfCEntry(acctId,d,vr.id);if(e){rq+=e.qty;ra+=e.amount;}});
+  const rqEl=document.getElementById("irq_"+did);if(rqEl)rqEl.innerHTML="<b>"+(rq?numf(rq):'—')+"</b>";
+  const raEl=document.getElementById("ira_"+did);if(raEl)raEl.innerHTML="<b>"+(ra?money(ra):'—')+"</b>";
+  const t=this.iqfCTotals(acctId);const set=(i,x)=>{const el=document.getElementById(i);if(el)el.textContent=x;};set("ictQ",numf(t.qty));set("ictA",money(t.amt));};
+App.iqfCPay=function(acctId){const a=this.acct(acctId);if(!a)return;const type=this.iqfClientType(a);const src=this.accountSelect(["treasury","custody","bank"]);
+  this.modal((type==='fac'?"💵 تحصيل دفعة من ":"💸 سداد دفعة لـ ")+esc(a.name),`<div class="fg">
+    <div class="field"><label>التاريخ</label><input type="date" id="icpD" value="${todayISO()}"></div>
+    <div class="field"><label>المبلغ</label><input type="number" step="0.01" id="icpA" style="font-weight:800"></div>
+    <div class="field" style="grid-column:span 2"><label>${type==='fac'?'تودع فى':'يُصرف من'}</label><select id="icpS">${src}</select></div>
+    <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="icpN"></div>
+   </div>`,`<button class="btn ${type==='fac'?'green':'blue'}" id="icpS2">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  $("#icpS2").onclick=()=>{const amt=Number($("#icpA").value)||0;const acc=$("#icpS").value;if(!amt||!acc){toast("أكمل البيانات","err");return;}
+    if(type==='fac')this.post({date:$("#icpD").value,desc:"تحصيل تجميد — "+a.name+($("#icpN").value.trim()?" ("+$("#icpN").value.trim()+")":""),debit:acc,credit:acctId,amount:amt,kind:"in",meta:{iqfPay:1}});
+    else this.post({date:$("#icpD").value,desc:"سداد تجميد — "+a.name+($("#icpN").value.trim()?" ("+$("#icpN").value.trim()+")":""),debit:acctId,credit:acc,amount:amt,kind:"pay",meta:{iqfPay:1}});
+    this.save();this.closeModal();this.render();toast("✅ تم");};};
+App.iqfCExport=function(id){const a=this.acct(id);const vars=this.iqfCVars();const dates=this.iqfCDatesList();const rows=this.xlsxHeaderRows("كشف تجميد — "+((a&&a.name)||''),1+vars.length*3+2);
+  const h1=[{v:"التاريخ",s:"hdr"}];vars.forEach(v=>h1.push({v:v.name,s:"hdr"},{v:"",s:"hdr"},{v:"",s:"hdr"}));h1.push({v:"إجمالى كمية",s:"hdr"},{v:"إجمالى مبلغ",s:"hdr"});rows.push(h1);
+  const h2=[{v:"",s:"hdr"}];vars.forEach(()=>h2.push({v:"كمية",s:"hdr"},{v:"سعر",s:"hdr"},{v:"مبلغ",s:"hdr"}));h2.push({v:"",s:"hdr"},{v:"",s:"hdr"});rows.push(h2);
+  dates.forEach(d=>{let rq=0,ra=0;const row=[{v:fmtDate(d),s:"txt"}];vars.forEach(v=>{const e=this.getIqfCEntry(id,d,v.id);const q=e?e.qty:0,pr=e?e.price:0;rq+=q;ra+=q*pr;row.push({v:q||"",s:"num"},{v:pr||"",s:"num"},{v:q*pr||"",s:"num"});});row.push({v:rq||"",s:"num"},{v:ra||"",s:"num"});rows.push(row);});
+  this.exportXLS("تجميد_"+((a&&a.name)||""),[{name:"كشف",rows,widths:[12].concat(vars.flatMap(()=>[8,8,10])).concat([12,14])}]);};
+
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);if(!have.iqfclients)PERMS.push(["iqfclients","🧊 عملاء التجميد (تسجيل يومى)"]);})();
+(function(){const orig=App.canPage.bind(App);App.canPage=function(route){if(route==="iqfclient")return orig("iqfclients");return orig(route);};})();
+
+/* ======= 2) نقل كل شغل التجميد تحت النشاط الزراعى (مش اللوجستيات) ======= */
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){let arr=orig();
+  const iqfItems=["iqf","iqfsup","iqffac","iqfclients"];
+  // احذفها من أى مكان حالى
+  arr=arr.filter(x=>iqfItems.indexOf(x[0])<0);
+  // أدرجها قبل مجموعة «المرتبات والموظفين» (نهاية النشاط الزراعى)
+  const labels={iqf:["iqf","❄️","تصفية التجميد"],iqfclients:["iqfclients","🧊","عملاء التجميد"],iqffac:["iqffac","🏭","مصانع التجميد"],iqfsup:["iqfsup","👨‍🌾","موردو التجميد"]};
+  const block=[["iqfclients","🧊","عملاء التجميد"],["iqffac","🏭","مصانع التجميد"],["iqfsup","👨‍🌾","موردو التجميد"],["iqf","❄️","تصفية التجميد"]];
+  const i=arr.findIndex(x=>x[0]==="_g"&&x[1]==="المرتبات والموظفين");const at=i>=0?i:arr.length;
+  arr.splice(at,0,...block);
+  return arr;};})();
+
+/* نهاية حزمة المتحدة v12 */
+
 App.boot();
 </script>
 </body>
