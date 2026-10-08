@@ -17959,6 +17959,245 @@ App.iqfFacExport=function(facId){const fac=this.acct(facId);const ent=this._iqfF
 
 
 
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v17                                                         ║
+   ║  • تسمية «أسعار الفراولة» بدل «أسعار التجميد»                               ║
+   ║  • سعر شراء الخام حسب المصدر (الملك/الشركاء/خارجى) — تحكّم كامل              ║
+   ║  • ＋يوم يضيف اليوم التالى تلقائياً · ＋فترة تسجّل الأيام بتواريخها وأسمائها    ║
+   ║  • أذان المواقيت بصوت الشيخ مشارى راشد العفاسى + شعار عائم وتحكّم بالصوت      ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* ===================== (1) مصدر الشراء + أسعار الخام بالمصدر ===================== */
+App.IQF_SRC=[["own","الملك"],["partner","الشركاء"],["ext","خارجى"]];
+App.iqfSrcName=function(s){const x=(App.IQF_SRC||[]).find(y=>y[0]===s);return x?x[1]:"خارجى";};
+App.iqfSupSource=function(supId){const a=this.acct(supId);return (a&&a.data&&a.data.iqfSrc)||"ext";};
+App.setIqfSupSource=function(supId,src){const a=this.acct(supId);if(!a)return;a.data=a.data||{};a.data.iqfSrc=src;const s=this.db.season;
+  (this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.acctId===supId).forEach(e=>this._iqfCRepost(e));this.save();this.render();toast("✅ مصدر الشراء: "+this.iqfSrcName(src));};
+
+/* بحث سعر الشراء: (نوع+مصدر) ← (نوع) ← (قديم) ← أى */
+App.iqfSupPriceRaw=function(date,varId,wtype,src){const s=this.db.season;wtype=wtype||"";src=src||"";return (this.db.iqfSupPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype&&(x.src||"")===src);};
+App.iqfSupPrice=function(date,varId,wtype,src){const s=this.db.season;const arr=(this.db.iqfSupPrices||[]).filter(x=>x.season===s&&x.date===date&&x.varId===varId);wtype=wtype||"";src=src||"";
+  let r=arr.find(x=>(x.wtype||"")===wtype&&(x.src||"")===src);
+  if(!r)r=arr.find(x=>(x.wtype||"")===wtype&&!x.src);
+  if(!r)r=arr.find(x=>!x.wtype&&!x.src);
+  if(!r)r=arr[0];
+  return r?(+r.price||0):0;};
+App.setIqfSupPrice=function(date,varId,p,wtype,src){this._ensureIqfP();const s=this.db.season;p=+p||0;wtype=wtype||"";src=src||"";
+  let r=(this.db.iqfSupPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype&&(x.src||"")===src);
+  if(r)r.price=p;else this.db.iqfSupPrices.push({season:s,date,varId,wtype,src,price:p});
+  (this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.date===date&&e.varId===varId&&this._isSup(e.acctId)).forEach(e=>this._iqfCRepost(e));this.save();};
+
+/* سعر شراء/بيع لحركة — بالمصدر والنوع والمصنع */
+App._iqfSupBuy=function(e){return this.iqfSupPrice(e.date,e.varId,this._iqfWt(e),this.iqfSupSource(e.acctId));};
+App._iqfFacSale=function(e){return this.iqfFacPrice(e.date,e.varId,this._iqfWt(e),e.factoryId||'');};
+
+App.iqfSupRowValues=function(supId,date){const vars=this.iqfCVars();const wt=this.iqfSupDateType(supId,date);const fac=this.iqfSupDateFactory(supId,date);const src=this.iqfSupSource(supId);let qty=0,pur=0,sale=0;
+  vars.forEach(v=>{const e=this.getIqfCEntry(supId,date,v.id);const q=e?e.qty:0;qty+=q;pur+=q*this.iqfSupPrice(date,v.id,wt,src);sale+=q*this.iqfFacPrice(date,v.id,wt,fac);});return {qty,pur,sale,margin:sale-pur};};
+
+/* إعادة الترحيل: المورد دائن (شراء بالمصدر) + المصنع مدين (بيع لكل مصنع) */
+App._iqfCRepost=function(e){
+  if(e.postId){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);e.postId=null;}
+  if(e.postSup){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postSup);e.postSup=null;}
+  if(e.postFac){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postFac);e.postFac=null;}
+  const acc=this.acct(e.acctId);if(!acc)return;const ip=this.exportPrepAcct();const vn=this.iqfCVarName(e.varId);const q=Number(e.qty)||0;const wt=this._iqfWt(e);
+  if(this.iqfClientType(acc)==='fac'){
+    const amt=q*(Number(e.price)||this.iqfFacPrice(e.date,e.varId,wt,e.acctId)||0);if(!amt)return;
+    const p=this.post({date:e.date,desc:"تجميد — تسليم "+acc.name+" / "+vn+" ("+numf(q)+"×"+money(q?amt/q:0)+")",debit:e.acctId,credit:ip.id,amount:amt,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt}});e.postId=p.id;return;}
+  const src=this.iqfSupSource(e.acctId);const supP=this.iqfSupPrice(e.date,e.varId,wt,src);const facP=this.iqfFacPrice(e.date,e.varId,wt,e.factoryId);
+  const pur=q*supP;const sale=q*facP;const sn=this.iqfSrcName(src);
+  if(pur){const p=this.post({date:e.date,desc:"توريد فراولة ("+wt+"/"+sn+") — "+acc.name+" / "+vn+" ("+numf(q)+"×"+money(supP)+")"+(e.factoryId?(" → "+((this.acct(e.factoryId)||{}).name||"")):""),debit:ip.id,credit:e.acctId,amount:pur,kind:"supply",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt,src,side:'pur',factoryId:e.factoryId||null}});e.postSup=p.id;}
+  if(sale&&e.factoryId&&this.acct(e.factoryId)){const fac=this.acct(e.factoryId);const p=this.post({date:e.date,desc:"فراولة ("+wt+") — تسليم "+fac.name+" / "+vn+" (مورد "+acc.name+") ("+numf(q)+"×"+money(facP)+")",debit:e.factoryId,credit:ip.id,amount:sale,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt,side:'sale',supId:e.acctId}});e.postFac=p.id;}
+};
+/* سعر الحركة المخزّن بالمصدر */
+(function(){const orig=App.setIqfSupEntry;App.setIqfSupEntry=function(supId,date,varId,qty,factoryId){const e=orig.apply(this,arguments);if(e){e.price=this.iqfSupPrice(date,varId,this._iqfWt(e),this.iqfSupSource(supId));e.amount=(Number(e.qty)||0)*e.price;this.save(true);}return e;};})();
+
+/* ===================== (2) ＋يوم تلقائى + ＋فترة بالأيام ===================== */
+App.iqfDateLbl=function(d){const wd=this.weekdayOf?this.weekdayOf(d):"";return fmtDate(d)+(wd?(" · "+wd):"");};
+App._nextIqfDay=function(){const ds=this.iqfCDatesList();const P=x=>String(x).padStart(2,"0");if(!ds.length)return todayISO();
+  const last=ds[ds.length-1];const d=new Date(last+"T00:00:00");d.setDate(d.getDate()+1);return d.getFullYear()+"-"+P(d.getMonth()+1)+"-"+P(d.getDate());};
+App.iqfCAddDay=function(){const d=this._nextIqfDay();this.addIqfCDate(d);this.render();toast("✅ أُضيف "+this.iqfDateLbl(d));};
+App.iqfCAddPeriod=function(){this.modal("＋ إضافة فترة (من–إلى)",`
+   <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">تُسجَّل كل أيام المدى بتواريخها وأسماء أيامها (السبت/الأحد...).</div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+     <label style="display:block">من تاريخ<input type="date" id="ipFrom" value="${this._nextIqfDay()}" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+     <label style="display:block">إلى تاريخ<input type="date" id="ipTo" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+   </div>`,
+   `<button class="btn green" onclick="App.iqfCAddPeriodGo()">✅ إضافة الفترة</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);};
+App.iqfCAddPeriodGo=function(){const g=id=>(document.getElementById(id)||{}).value;const from=g('ipFrom'),to=g('ipTo');if(!from||!to){toast('حدّد الفترة','err');return;}
+  let f=new Date(from+"T00:00:00"),t=new Date(to+"T00:00:00");if(t<f){const x=f;f=t;t=x;}let n=0;const P=x=>String(x).padStart(2,"0");
+  for(let d=new Date(f);d<=t;d.setDate(d.getDate()+1)){const iso=d.getFullYear()+"-"+P(d.getMonth()+1)+"-"+P(d.getDate());this.addIqfCDate(iso);n++;}
+  this.closeModal();this.render();toast('✅ أُضيف '+n+' يوم بالفترة');};
+
+/* ===================== (3) صفحتا الأسعار (الفراولة): نوع + مصدر + لكل مصنع + فترة ===================== */
+App._iqfPPF=App._iqfPPF||{};if(!App._iqfPPF.ptype)App._iqfPPF.ptype="خام";if(!App._iqfPPF.src)App._iqfPPF.src="ext";
+App._iqfFPF=App._iqfFPF||{};if(!App._iqfFPF.ptype)App._iqfFPF.ptype="مجهز";if(App._iqfFPF.facId==null)App._iqfFPF.facId="";
+App._iqfPriceCell=function(kind,inp){const d=inp.getAttribute("data-d");const v=inp.getAttribute("data-v");const val=Number(inp.value)||0;
+  const u=this.auth.user;if(!(u&&(u.admin||this.can("cartonEditPrice")))){toast("🔒 ليس لديك صلاحية تعديل الأسعار","err");return;}
+  if(kind==='sup')this.setIqfSupPrice(d,v,val,this._iqfPPF.ptype,this._iqfPPF.src);
+  else{if(!this._iqfFPF.facId){toast("اختر المصنع أولاً","err");return;}this.setIqfFacPrice(d,v,val,this._iqfFPF.ptype,this._iqfFPF.facId);}
+  toast("✅ تم تحديث السعر");};
+App._iqfPricesPage=function(kind){App._ensureIqfC();App._ensureIqfP();const vars=App.iqfCVars();const dates=App.iqfCDatesList();
+  const isFac=kind==='fac';const st=isFac?App._iqfFPF:App._iqfPPF;const facs=App.iqfClients().filter(x=>App.iqfClientType(x)==='fac');
+  if(isFac&&!st.facId&&facs.length)st.facId=facs[0].id;
+  const getRaw=isFac?(d,v)=>App.iqfFacPriceRaw(d,v,st.ptype,st.facId):(d,v)=>App.iqfSupPriceRaw(d,v,st.ptype,st.src);
+  const stName=isFac?'_iqfFPF':'_iqfPPF';
+  const typeChips=["خام","مجهز"].map(t=>`<button class="btn ${st.ptype===t?'gold':'gh'} sm" onclick="App.${stName}.ptype='${t}';App.render()">${t}</button>`).join("");
+  const srcChips=!isFac?App.IQF_SRC.map(x=>`<button class="btn ${st.src===x[0]?'blue':'gh'} sm" onclick="App._iqfPPF.src='${x[0]}';App.render()">${x[1]}</button>`).join(""):'';
+  const facSelector=isFac?`<span style="font-weight:800;font-size:12.5px;margin-inline-start:10px">🏭 المصنع:</span><select onchange="App._iqfFPF.facId=this.value;App.render()" style="padding:6px 10px;border-radius:8px;border:1px solid #d6dee5;font-weight:700">${facs.length?facs.map(f=>`<option value="${f.id}" ${f.id===st.facId?'selected':''}>${esc(f.name)}</option>`).join(""):'<option value="">— لا مصانع —</option>'}</select>`:'';
+  const headCols=vars.map(v=>`<th style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const canGrid=!isFac||st.facId;
+  const rows=canGrid&&dates.length?dates.map(d=>`<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(App.iqfDateLbl(d))}</td>${vars.map(v=>{const r=getRaw(d,v.id);const p=r?(+r.price||0):'';return `<td style="padding:2px"><input type="number" step="0.01" value="${p||''}" data-d="${d}" data-v="${v.id}" placeholder="0" style="width:76px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center" oninput="App._iqfPriceCell('${kind}',this)"></td>`;}).join("")}</tr>`).join(""):`<tr><td colspan="${vars.length+1}" class="empty">${isFac&&!st.facId?'اختر مصنعاً أولاً':'لا أيام — أضف أيام من كشف أى مورد'}</td></tr>`;
+  const subName=isFac?("سعر البيع لكل مصنع — "+st.ptype):("سعر الشراء — "+st.ptype+" · "+App.iqfSrcName(st.src));
+  return head("💲",isFac?"أسعار بيع الفراولة (للمصانع)":"أسعار شراء الفراولة (من الموردين)",
+    subName+" · يومى بالصنف أو لفترة — يسمع فوراً فى الحسابات",
+    `<button class="btn blue sm" onclick="App.iqfPricePeriod('${kind}')">📅 تسعير فترة (من–إلى)</button><button class="btn gold sm" onclick="App.iqfCVarManage()">🏷️ الأصناف</button><button class="btn gh sm" onclick="App.go('iqfclients')">↩ العملاء</button>`)+`
+   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+     <span style="font-weight:800;font-size:12.5px">🔎 النوع:</span>${typeChips}
+     ${!isFac?('<span style="font-weight:800;font-size:12.5px;margin-inline-start:10px">💰 المصدر:</span>'+srcChips):''}${facSelector}
+   </div>
+   <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">💡 ${isFac?'لكل مصنع قائمة أسعار مستقلة حسب اليوم والصنف والنوع (خام/مجهز).':'سعر الشراء مستقل لكل مصدر (الملك/الشركاء/خارجى) ولكل نوع (خام/مجهز) — أدخله زى ما انت عاوز.'} استخدم «📅 تسعير فترة» لمدة كاملة دفعة واحدة.</div>
+   <div class="card"><div class="card-b p0"><div class="tw" style="max-height:66vh;overflow:auto"><table class="t"><thead><tr><th style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th>${headCols}</tr></thead><tbody>${rows}</tbody></table></div></div></div>`;};
+Pages.iqfsupprices=function(){return App._iqfPricesPage('sup');};Pages.iqfsupprices.meta={title:"أسعار شراء الفراولة",crumb:"عملاء التجميد"};
+Pages.iqffacprices=function(){return App._iqfPricesPage('fac');};Pages.iqffacprices.meta={title:"أسعار بيع الفراولة",crumb:"عملاء التجميد"};
+/* إعادة تسمية عناصر القائمة */
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();arr.forEach(x=>{if(x[0]==="iqfsupprices")x[2]="أسعار شراء الفراولة";if(x[0]==="iqffacprices")x[2]="أسعار بيع الفراولة";});return arr;};})();
+
+/* تسعير فترة — بالمصدر للشراء */
+App.iqfPricePeriod=function(kind){const vars=this.iqfCVars();const st=kind==='fac'?this._iqfFPF:this._iqfPPF;const facs=this.iqfClients().filter(x=>this.iqfClientType(x)==='fac');
+  const srcRow=kind==='sup'?`<label style="display:block">💰 المصدر<select id="ppSrc" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px">${this.IQF_SRC.map(x=>`<option value="${x[0]}" ${x[0]===st.src?'selected':''}>${x[1]}</option>`).join("")}</select></label>`:'';
+  const facRow=kind==='fac'?`<label style="display:block">🏭 المصنع<select id="ppFac" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px">${facs.map(f=>`<option value="${f.id}" ${f.id===st.facId?'selected':''}>${esc(f.name)}</option>`).join("")}</select></label>`:'';
+  this.modal("📅 تسعير فترة — "+(kind==='fac'?'بيع للمصنع':'شراء من الموردين'),`
+    <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">يُطبَّق السعر على كل الأيام المسجّلة داخل المدى. اختر «كل الأصناف» أو صنفاً محدداً.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label style="display:block">من تاريخ<input type="date" id="ppFrom" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+      <label style="display:block">إلى تاريخ<input type="date" id="ppTo" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+      <label style="display:block">الصنف<select id="ppVar" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option value="">كل الأصناف</option>${vars.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join("")}</select></label>
+      <label style="display:block">النوع<select id="ppType" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option ${st.ptype==='خام'?'selected':''}>خام</option><option ${st.ptype==='مجهز'?'selected':''}>مجهز</option></select></label>
+      ${srcRow}${facRow}
+      <label style="display:block">السعر<input type="number" step="0.01" id="ppPrice" placeholder="0.00" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+    </div>`,
+    `<button class="btn green" onclick="App.iqfPricePeriodApply('${kind}')">✅ تطبيق</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);};
+App.iqfPricePeriodApply=function(kind){const g=id=>(document.getElementById(id)||{}).value;
+  const from=g('ppFrom'),to=g('ppTo'),varId=g('ppVar'),type=g('ppType')||'خام',price=Number(g('ppPrice'))||0;
+  const facId=kind==='fac'?g('ppFac'):'';const src=kind==='sup'?(g('ppSrc')||'ext'):'';
+  if(!from||!to){toast('حدّد الفترة','err');return;}
+  if(kind==='fac'&&!facId){toast('اختر المصنع','err');return;}
+  let f=new Date(from),t=new Date(to);if(t<f){const x=f;f=t;t=x;}
+  const dates=this.iqfCDatesList().filter(d=>{const x=new Date(d);return x>=f&&x<=t;});
+  if(!dates.length){toast('لا أيام مسجّلة داخل المدى — أضف الأيام أولاً','err');return;}
+  const vs=varId?[{id:varId}]:this.iqfCVars();let n=0;
+  dates.forEach(d=>vs.forEach(v=>{if(kind==='sup')this.setIqfSupPrice(d,v.id,price,type,src);else this.setIqfFacPrice(d,v.id,price,type,facId);n++;}));
+  if(kind==='sup'){this._iqfPPF.ptype=type;this._iqfPPF.src=src;}else this._iqfFPF.ptype=type;
+  this.closeModal();toast('✅ تم تسعير '+n+' خلية ('+type+(kind==='sup'?('/'+this.iqfSrcName(src)):'')+')');this.render();};
+
+/* ===================== (4) شبكة المورد: مصدر الشراء + اسم اليوم + ＋يوم/＋فترة ===================== */
+(function(){const prevGrid=Pages.iqfclient;Pages.iqfclient=function(){const id=App.arg&&App.arg.id;const a=id?App.acct(id):null;
+  if(!a||App.iqfClientType(a)!=='sup')return prevGrid.apply(this,arguments);
+  App._ensureIqfC();App._ensureIqfP();const vars=App.iqfCVars();const dates=App.iqfCDatesList();const b=App.balance(id);
+  const facs=App.iqfClients().filter(x=>App.iqfClientType(x)==='fac');const curSrc=App.iqfSupSource(id);
+  let TQ=0,TPUR=0,TSALE=0;const headCols=vars.map(v=>`<th style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const rows=dates.length?dates.map(d=>{const did=App._icd(d);const rv=App.iqfSupRowValues(id,d);TQ+=rv.qty;TPUR+=rv.pur;TSALE+=rv.sale;const curFac=App.iqfSupDateFactory(id,d);const curT=App.iqfSupDateType(id,d);
+    const facSel=`<select onchange="App.setIqfSupDateFactory('${id}','${d}',this.value);App.render()" style="width:120px;padding:5px;border:1px solid #e2e8f0;border-radius:6px"><option value="">— المصنع —</option>${facs.map(f=>`<option value="${f.id}" ${f.id===curFac?'selected':''}>${esc(f.name)}</option>`).join("")}</select>`;
+    const tSel=`<select onchange="App.setIqfSupDateType('${id}','${d}',this.value);App.render()" style="width:78px;padding:5px;border:1px solid #e2e8f0;border-radius:6px">${App.IQF_TYPES.map(t=>`<option ${t===curT?'selected':''}>${t}</option>`).join("")}</select>`;
+    const cells=vars.map(v=>{const e=App.getIqfCEntry(id,d,v.id);const q=e?e.qty:0;return `<td style="padding:2px"><input type="number" step="0.01" value="${q||''}" data-d="${d}" data-v="${v.id}" style="width:54px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center" oninput="App.iqfSupCell('${id}',this)"></td>`;}).join("");
+    return `<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(App.iqfDateLbl(d))}</td><td>${facSel}</td><td>${tSel}</td>${cells}<td class="num" id="isq_${did}"><b>${rv.qty?numf(rv.qty):'—'}</b></td><td class="num" id="isp_${did}" style="color:#b91c1c">${rv.pur?money(rv.pur):'—'}</td><td class="num" id="iss_${did}" style="color:#16a34a">${rv.sale?money(rv.sale):'—'}</td><td class="num" id="ism_${did}"><b>${rv.margin?money(rv.margin):'—'}</b></td></tr>`;}).join(""):`<tr><td colspan="${vars.length+7}" class="empty">لا أيام — اضغط «＋ يوم» أو «＋ فترة»</td></tr>`;
+  const srcSel=`<select onchange="App.setIqfSupSource('${id}',this.value)" style="padding:7px 12px;border-radius:9px;border:1.5px solid #1747a8;font-weight:800;background:#eef4ff;color:#13324a">${App.IQF_SRC.map(x=>`<option value="${x[0]}" ${x[0]===curSrc?'selected':''}>${x[1]}</option>`).join("")}</select>`;
+  return head("📋","كشف توريد مورد فراولة — "+a.name,"👨‍🌾 مورد (مستحق له) · حدّد مصدر الشراء والمصنع والنوع — الأسعار من القوائم · قيد واحد للمورد والمصنع بلا تكرار",
+    `<button class="btn green sm" onclick="App.iqfCAddDay()">＋ يوم (التالى تلقائياً)</button><button class="btn green sm" onclick="App.iqfCAddPeriod()">＋ فترة</button><button class="btn blue sm" onclick="App.go('iqfsupprices')">💲 أسعار الشراء</button><button class="btn gold sm" onclick="App.go('iqffacprices')">💲 أسعار المصانع</button><button class="btn blue sm" onclick="App.iqfCPay('${id}')">💸 سداد دفعة</button><button class="btn gh sm" onclick="App.go('statement',{id:'${id}'})">كشف الحساب</button><button class="btn gh sm" onclick="App.go('iqfclients')">↩ العملاء</button>`)+`
+   <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;background:#fff;padding:11px 14px;border-radius:12px;box-shadow:0 6px 18px -10px rgba(15,32,56,.35)">
+     <span style="font-weight:900;font-size:13.5px">💰 مصدر الشراء لهذا المورد:</span>${srcSel}
+     <span class="hint" style="font-size:12px;margin:0">يحدّد قائمة أسعار الشراء المطبَّقة (الملك/الشركاء/خارجى).</span>
+   </div>
+   <div class="grid kpis" style="margin-bottom:12px">
+    ${kpi("إجمالى الكمية",numf(TQ),"",'g','⚖️')}${kpi("قيمة الشراء (له)",m2(TPUR),"مستحق للمورد",'r','📥')}${kpi("قيمة البيع للمصانع",m2(TSALE),"على المصانع",'green','📤')}${kpi("الباقى له (عليك)",m2(Math.abs(b)),"رصيد المورد",'gold','🧾')}
+   </div>
+   <div class="card"><div class="card-b p0"><div class="tw" style="max-height:62vh;overflow:auto">
+    <table class="t" style="font-size:12px"><thead><tr><th style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th><th style="background:#7c3aed;color:#fff">المصنع</th><th style="background:#d9822b;color:#fff">النوع</th>${headCols}<th style="background:#1f9d57;color:#fff">كمية</th><th style="background:#b91c1c;color:#fff">شراء</th><th style="background:#16a34a;color:#fff">بيع</th><th style="background:#0e7490;color:#fff">الفرق</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+   </div></div></div>`;};})();
+
+/* ===================== (5) أذان المواقيت — الشيخ مشارى راشد العفاسى ===================== */
+App.ATHAN_URL_DEFAULT="https://www.islamcan.com/audio/adhan/azan2.mp3";
+App.athanCfg=function(){if(!this.db.athan||typeof this.db.athan!=='object')this.db.athan={enabled:true,volume:0.85,url:this.ATHAN_URL_DEFAULT,useCustom:false};
+  if(this.db.athan.volume==null)this.db.athan.volume=0.85;if(!this.db.athan.url)this.db.athan.url=this.ATHAN_URL_DEFAULT;return this.db.athan;};
+App.athanSrc=function(){const c=this.athanCfg();if(c.useCustom){try{const d=localStorage.getItem('motahida_athan_custom');if(d)return d;}catch(e){}}return c.url||this.ATHAN_URL_DEFAULT;};
+App._athanCSS=function(){if(document.getElementById('athanCSS'))return;const st=document.createElement('style');st.id='athanCSS';
+  st.textContent='@keyframes athanIn{from{transform:translateY(24px) scale(.96);opacity:0}to{transform:none;opacity:1}}'+
+   '@keyframes athanGlow{0%,100%{box-shadow:0 0 0 0 rgba(224,169,46,.6),0 18px 50px -12px rgba(0,0,0,.6)}50%{box-shadow:0 0 0 10px rgba(224,169,46,0),0 18px 50px -12px rgba(0,0,0,.6)}}'+
+   '@keyframes athanSpin{to{transform:rotate(360deg)}}@keyframes athanPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}';
+  document.head.appendChild(st);};
+App.athanShow=function(name,time){const cfg=this.athanCfg();if(cfg.enabled===false)return;this._athanCSS();this.athanClose();
+  let a=null;try{a=new Audio(this.athanSrc());a.volume=(cfg.volume==null?.85:cfg.volume);const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}
+  this._athanAudio=a;if(a)a.onended=()=>this.athanClose();
+  const vol=Math.round((cfg.volume==null?.85:cfg.volume)*100);
+  const box=document.createElement('div');box.id='athanBox';
+  box.style.cssText='position:fixed;bottom:22px;inset-inline-start:22px;z-index:99999;width:308px;border-radius:20px;overflow:hidden;animation:athanIn .45s cubic-bezier(.2,.9,.2,1),athanGlow 2.4s ease-in-out infinite;font-family:inherit;direction:rtl';
+  box.innerHTML=`
+    <div style="background:linear-gradient(135deg,#0e2536,#7d0f34);color:#fff;padding:16px 16px 14px;position:relative">
+      <button onclick="App.athanClose()" title="إغلاق" style="position:absolute;top:10px;inset-inline-end:10px;background:rgba(255,255,255,.18);border:none;color:#fff;width:28px;height:28px;border-radius:9px;font-size:15px;cursor:pointer">✕</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#e0a92e,#8a5a0c);display:flex;align-items:center;justify-content:center;font-size:30px;animation:athanPulse 1.6s ease-in-out infinite;box-shadow:0 0 22px rgba(224,169,46,.7)">🕌</div>
+        <div><div style="font-weight:900;font-size:16px">حان الآن موعد صلاة ${esc(name)}</div>
+          <div style="font-size:12px;opacity:.9;margin-top:2px">${time?('الساعة '+esc(time)+' · '):''}أذان الشيخ مشارى راشد العفاسى</div></div>
+      </div>
+    </div>
+    <div style="background:#fff;padding:12px 14px;display:flex;align-items:center;gap:8px">
+      <button id="athanMuteBtn" onclick="App.athanToggleMute()" title="كتم/تشغيل" style="background:#eef4ff;border:1px solid #d6e0f5;border-radius:10px;width:38px;height:34px;font-size:16px;cursor:pointer">🔊</button>
+      <button onclick="App.athanVol(-0.1)" title="تخفيض" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer">➖</button>
+      <input id="athanSlide" type="range" min="0" max="100" value="${vol}" oninput="App.athanSlide(this.value)" style="flex:1;accent-color:#c98f1e">
+      <button onclick="App.athanVol(0.1)" title="تعلية" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;width:34px;height:34px;font-size:15px;cursor:pointer">➕</button>
+      <span id="athanPct" style="font-weight:800;font-size:12px;min-width:38px;text-align:center;color:#13324a">${vol}%</span>
+      <button onclick="App.athanReplay()" title="إعادة التشغيل" style="background:#eafaf0;border:1px solid #cdeedd;border-radius:10px;width:38px;height:34px;font-size:15px;cursor:pointer">▶️</button>
+    </div>`;
+  document.body.appendChild(box);};
+App._athanSyncUI=function(){const a=this._athanAudio;if(!a)return;const muted=a.muted||a.volume===0;const pct=muted?0:Math.round(a.volume*100);
+  const sl=document.getElementById('athanSlide');if(sl)sl.value=pct;const lb=document.getElementById('athanPct');if(lb)lb.textContent=pct+'%';
+  const mb=document.getElementById('athanMuteBtn');if(mb)mb.textContent=muted?'🔇':'🔊';};
+App._athanSaveVol=function(v){const c=this.athanCfg();c.volume=v;this.db.athan=c;try{this.save(true);}catch(e){}};
+App.athanVol=function(delta){const a=this._athanAudio;if(!a)return;a.muted=false;a.volume=Math.max(0,Math.min(1,(a.volume||0)+delta));this._athanSaveVol(a.volume);this._athanSyncUI();};
+App.athanSlide=function(val){const a=this._athanAudio;if(!a)return;a.muted=false;a.volume=Math.max(0,Math.min(1,(+val||0)/100));this._athanSaveVol(a.volume);this._athanSyncUI();};
+App.athanToggleMute=function(){const a=this._athanAudio;if(!a)return;a.muted=!a.muted;this._athanSyncUI();};
+App.athanReplay=function(){const a=this._athanAudio;if(!a){this.athanShow('الصلاة','');return;}try{a.currentTime=0;a.muted=false;const pr=a.play();if(pr&&pr.catch)pr.catch(()=>{});}catch(e){}this._athanSyncUI();};
+App.athanClose=function(){const a=this._athanAudio;if(a){try{a.pause();}catch(e){}this._athanAudio=null;}const b=document.getElementById('athanBox');if(b&&b.parentNode)b.parentNode.removeChild(b);};
+App.athanTest=function(){const t=this.prayerTimes(new Date(),30.3765,30.5177);this.athanShow('تجربة',t.الظهر||'');};
+
+/* إعدادات الأذان */
+App.athanSetEnabled=function(b){const c=this.athanCfg();c.enabled=!!b;this.db.athan=c;this.save();toast(b?'✅ الأذان مفعّل':'🔕 تم إيقاف الأذان');};
+App.athanSetDefaultVol=function(v){const c=this.athanCfg();c.volume=Math.max(0,Math.min(1,(+v||0)/100));this.db.athan=c;const l=document.getElementById('athVolLbl');if(l)l.textContent=Math.round(c.volume*100)+'%';try{this.save(true);}catch(e){}if(this._athanAudio){this._athanAudio.volume=c.volume;this._athanSyncUI();}};
+App.athanSaveSettings=function(){const c=this.athanCfg();const u=document.getElementById('athUrl');if(u)c.url=(u.value||'').trim()||this.ATHAN_URL_DEFAULT;const cu=document.getElementById('athCustom');if(cu)c.useCustom=cu.checked;const en=document.getElementById('athEn');if(en)c.enabled=en.checked;this.db.athan=c;this.save();toast('✅ تم حفظ إعدادات الأذان');};
+App.athanUpload=function(inp){const f=inp.files&&inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{localStorage.setItem('motahida_athan_custom',r.result);const c=this.athanCfg();c.useCustom=true;this.db.athan=c;this.save();const cu=document.getElementById('athCustom');if(cu)cu.checked=true;toast('✅ تم حفظ ملف الأذان (يعمل أوفلاين)');}catch(e){toast('⚠️ الملف كبير على التخزين المحلى','err');}};r.readAsDataURL(f);};
+App.athanResetUrl=function(){const c=this.athanCfg();c.url=this.ATHAN_URL_DEFAULT;c.useCustom=false;this.db.athan=c;this.save();const u=document.getElementById('athUrl');if(u)u.value=c.url;const cu=document.getElementById('athCustom');if(cu)cu.checked=false;toast('↩ تم الرجوع للأذان الافتراضى');};
+
+/* شغّل الأذان لحظة دخول الوقت (مع الإبقاء على التنبيه قبل ٥ دقائق) */
+(function(){const orig=App._checkPrayer;App._checkPrayer=function(n){try{orig.apply(this,arguments);}catch(e){}
+  try{const t=this.prayerTimes(n,30.3765,30.5177);const nowMin=n.getHours()*60+n.getMinutes();
+    const parse=s=>{const m=(s||"").match(/(\d+):(\d+)\s*(ص|م)/);if(!m)return -1;let h=+m[1]%12;if(m[3]==="م")h+=12;return h*60+(+m[2]);};
+    if(!this._athanFired)this._athanFired={};
+    ["الفجر","الظهر","العصر","المغرب","العشاء"].forEach(k=>{const pm=parse(t[k]);if(pm<0)return;if(pm===nowMin){const key='ath_'+k+n.toDateString();if(!this._athanFired[key]){this._athanFired[key]=1;this.athanShow(k,t[k]);}}});
+  }catch(e){}};})();
+
+/* إضافة إعدادات الأذان لنافذة المواقيت */
+App.showPrayer=function(){const t=this.prayerTimes(new Date(),30.3765,30.5177);const now=new Date();const day=(typeof fmtDateFull==="function")?fmtDateFull(now):now.toDateString();
+  const rows=Object.keys(t).map(k=>`<tr><td class="r"><b>${k}</b></td><td class="num" style="font-size:16px;color:var(--gold2);font-weight:800">${t[k]}</td></tr>`).join("");
+  const cfg=this.athanCfg();const vol=Math.round((cfg.volume==null?.85:cfg.volume)*100);
+  this.modal("🕌 مواقيت الصلاة — مدينة السادات",`<div class="hint" style="margin-bottom:10px">${esc(day)}</div>
+   <table class="t"><thead><tr><th class="r">الصلاة</th><th>الوقت</th></tr></thead><tbody>${rows}</tbody></table>
+   <div class="hint" style="margin-top:10px">الحساب وفق طريقة الهيئة المصرية العامة للمساحة، بتوقيت جهازك تلقائياً.</div>
+   <hr style="margin:14px 0;border:none;border-top:1px solid #eef2f6">
+   <div style="font-weight:900;margin-bottom:8px">🔊 أذان المواقيت — الشيخ مشارى راشد العفاسى</div>
+   <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:700"><input type="checkbox" id="athEn" ${cfg.enabled!==false?'checked':''} onchange="App.athanSetEnabled(this.checked)"> تشغيل الأذان صوتياً عند دخول الوقت (مع شعار عائم وتحكّم بالصوت)</label>
+   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">🔉<input type="range" min="0" max="100" value="${vol}" oninput="App.athanSetDefaultVol(this.value)" style="flex:1;accent-color:#c98f1e">🔊<span id="athVolLbl" style="font-weight:800;min-width:40px;text-align:center">${vol}%</span></div>
+   <div class="field"><label>رابط ملف الأذان (MP3)</label><input id="athUrl" value="${esc(cfg.url||'')}" placeholder="https://..."></div>
+   <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-weight:700"><input type="checkbox" id="athCustom" ${cfg.useCustom?'checked':''}> استخدام ملف أذان مرفوع من جهازى (يعمل أوفلاين)</label>
+   <input type="file" accept="audio/*" id="athFile" onchange="App.athanUpload(this)" style="margin-bottom:6px">`,
+   `<button class="btn gold" onclick="App.athanSaveSettings();App.athanTest()">▶️ تجربة الأذان</button><button class="btn blue" onclick="App.athanSaveSettings()">💾 حفظ</button><button class="btn gh" onclick="App.athanResetUrl()">↩ الافتراضى</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`);
+};
+
+/* نهاية حزمة المتحدة v17 */
+
+
+
 App.boot();
 </script>
 </body>
