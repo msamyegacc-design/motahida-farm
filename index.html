@@ -17057,6 +17057,129 @@ App.packExportLedger=function(companyId){const c=this.acct(companyId);const D=th
 
 /* نهاية حزمة المتحدة v7 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v8 — تصفية التجميد (Freezing Settlement)                   ║
+   ║   مورد × مصنع · مبلغ التوريد / كشف الشركة / التصفية + حسابات مصانع وموردين  ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+App._ensureIqf=function(){if(!Array.isArray(this.db.iqfRows))this.db.iqfRows=[];};
+App.iqfRows=function(){this._ensureIqf();const s=this.db.season;return (this.db.iqfRows||[]).filter(r=>r.season===s);};
+App.iqfSettle=function(r){return (r.settle!=null)?Number(r.settle):(Number(r.statement||0)-Number(r.supply||0));};
+App.iqfTotals=function(){const rs=this.iqfRows();let supply=0,statement=0,settle=0;rs.forEach(r=>{supply+=Number(r.supply)||0;statement+=Number(r.statement)||0;settle+=this.iqfSettle(r);});return {supply,statement,settle,n:rs.length};};
+App.iqfByFactory=function(){const map={};this.iqfRows().forEach(r=>{const k=r.factory||"—";const g=map[k]||(map[k]={factory:k,supply:0,statement:0,settle:0,rows:[]});g.supply+=Number(r.supply)||0;g.statement+=Number(r.statement)||0;g.settle+=this.iqfSettle(r);g.rows.push(r);});return Object.values(map);};
+App.iqfBySupplier=function(){const map={};this.iqfRows().forEach(r=>{const k=r.name||"— بدون اسم —";const g=map[k]||(map[k]={name:k,supply:0,statement:0,settle:0,rows:[]});g.supply+=Number(r.supply)||0;g.statement+=Number(r.statement)||0;g.settle+=this.iqfSettle(r);g.rows.push(r);});return Object.values(map);};
+
+/* بيانات موسم 2025-2026 من شيت «تصفية التجميد» */
+App.IQF_2025=[
+  {name:"ايمن معوض",factory:"راية",supply:168997.8,statement:163685.85},
+  {name:"عماد طايل",factory:"فرست",supply:78285.9,statement:80667.6},
+  {name:"",factory:"خام كارى",supply:211505.63773,statement:211505.63773,settle:-3470},
+  {name:"هانى صالح",factory:"العين",supply:1325046.578496,statement:1367913.958496},
+  {name:"",factory:"اللؤلؤة",supply:857056.229694,statement:927287.133322},
+  {name:"",factory:"راية",supply:200277.15,statement:204291.85},
+  {name:"",factory:"اجمالى فرق 1% على التوريد",supply:3182678.7480081,statement:3214827.0181899997,settle:22824.75018189989},
+  {name:"حسن غراب",factory:"العين",supply:273422.08,statement:277165.08},
+  {name:"عبد الحليم أبو الحديد",factory:"اللؤلؤة",supply:1249914.6475,statement:1374059.379},
+  {name:"محمد البيهوفى",factory:"العين خام",supply:37483.776,statement:40089.6},
+  {name:"فتحى جوهر",factory:"خام كارى",supply:766732.428,statement:837814.08004},
+  {name:"",factory:"راية فرست ياسين",supply:186222.168,statement:274168.4},
+  {name:"",factory:"اللؤلؤة",supply:74785.59,statement:83431.7936},
+  {name:"محمد عبد الغفار",factory:"خام كارى",supply:1059973.002,statement:1094763.0094600003},
+  {name:"",factory:"راية فرست ياسين",supply:46759.68,statement:55104},
+  {name:"محمد مدكور",factory:"توريد فودد اليانس",supply:7010,statement:7697.92},
+  {name:"النيل",factory:"بست",supply:463245.5,statement:469312.8},
+  {name:"احمد وجية",factory:"",supply:606031.8,statement:629613.2},
+  {name:"صالح زيدان",factory:"",supply:652271.05,statement:658851.85},
+];
+App.iqfLoad2025=function(){this._ensureIqf();const s=this.db.season;
+  if(this.iqfRows().length){this.confirmDel("فيه بيانات تصفية تجميد بالفعل فى الموسم «"+s+"» — هل تريد إضافة بيانات 2025-2026 فوقها؟",()=>App._iqfDoLoad());return;}
+  this.modal("❄️ تحميل بيانات تصفية التجميد 2025-2026",`<p style="font-size:14px;line-height:1.9">هيتم تحميل <b>${this.IQF_2025.length} سطر</b> (موردين × مصانع) بالأرقام فى الموسم الحالى <b>«${esc(s)}»</b>، وفتح حساب لكل مصنع ومورد تلقائياً.</p>
+    <div class="hint" style="margin-top:8px;padding:10px;background:rgba(46,109,240,.08);border-radius:8px;line-height:1.8">💡 الأرقام دى ملخص التصفية من الشيت (مبلغ التوريد / كشف الشركة / التصفية). التفاصيل اليومية جوه كل مصنع كانت فى ملفات منفصلة — ابعتها لو عايز نحمّلها بالتفصيل.</div>`,
+   `<button class="btn green" onclick="App._iqfDoLoad()">⬇️ تحميل البيانات</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._iqfDoLoad=function(){this._ensureIqf();const s=this.db.season;
+  this.IQF_2025.forEach(r=>{this.db.iqfRows.push({id:uid(),season:s,name:r.name||"",factory:r.factory||"",supply:r.supply||0,statement:r.statement||0,settle:(r.settle!=null?r.settle:null)});
+    if(r.factory&&r.factory.indexOf("اجمالى")<0)this._iqfEnsureFactory(r.factory);
+    if(r.name)this._iqfEnsureSupplier(r.name);});
+  this.save();this.closeModal();this.render();toast("✅ تم تحميل بيانات تصفية التجميد 2025-2026");};
+App._iqfEnsureFactory=function(name){name=(name||"").trim();if(!name)return null;let a=this.accountsBy("factory").find(x=>x.name===name);if(!a){a=this.addAccount({node:"factory",name,data:{iqf:true}},1);}else{a.data=a.data||{};a.data.iqf=true;}return a;};
+App._iqfEnsureSupplier=function(name){name=(name||"").trim();if(!name)return null;let a=this.accountsBy("supplier").find(x=>x.name===name);if(!a){a=this.addAccount({node:"supplier",name,cat:"تجميد",data:{iqfSupplier:true}},1);}return a;};
+
+/* صفحة تصفية التجميد */
+App._iqfView="all";
+Pages.iqf=function(){App._ensureIqf();const T=App.iqfTotals();const view=App._iqfView||"all";
+  const tabs=[["all","📋 كل السطور"],["factory","🏭 حسب المصنع"],["supplier","👨‍🌾 حسب المورد"]];
+  let table="";
+  if(view==="factory"){const g=App.iqfByFactory().sort((a,b)=>b.statement-a.statement);
+    table=`<table class="t"><thead><tr><th class="r">المصنع</th><th>عدد السطور</th><th>مبلغ التوريد</th><th>كشف الشركة</th><th>التصفية</th><th></th></tr></thead><tbody>
+    ${g.map(x=>`<tr><td class="r"><b>${esc(x.factory)}</b></td><td class="num">${x.rows.length}</td><td class="num">${money(x.supply)}</td><td class="num">${money(x.statement)}</td><td class="num"><b style="color:${x.settle>=0?'var(--green)':'var(--red)'}">${money(x.settle)}</b></td><td>${x.factory&&x.factory.indexOf('اجمالى')<0?`<button class="btn gh sm" onclick="App.iqfFactoryView('${esc(x.factory).replace(/'/g,"")}')">🔍 تفاصيل</button>`:''}</td></tr>`).join("")}
+    </tbody></table>`;}
+  else if(view==="supplier"){const g=App.iqfBySupplier().sort((a,b)=>b.supply-a.supply);
+    table=`<table class="t"><thead><tr><th class="r">المورد</th><th>عدد السطور</th><th>مبلغ التوريد</th><th>كشف الشركة</th><th>التصفية</th></tr></thead><tbody>
+    ${g.map(x=>`<tr><td class="r"><b>${esc(x.name)}</b></td><td class="num">${x.rows.length}</td><td class="num">${money(x.supply)}</td><td class="num">${money(x.statement)}</td><td class="num"><b style="color:${x.settle>=0?'var(--green)':'var(--red)'}">${money(x.settle)}</b></td></tr>`).join("")}
+    </tbody></table>`;}
+  else{const rs=App.iqfRows();
+    table=`<table class="t"><thead><tr><th>#</th><th class="r">المورد</th><th>المصنع</th><th>مبلغ التوريد</th><th>كشف الشركة</th><th>التصفية</th><th></th></tr></thead><tbody>
+    ${rs.length?rs.map((r,i)=>{const st=App.iqfSettle(r);return `<tr><td>${i+1}</td><td class="r"><b>${esc(r.name||'—')}</b></td><td>${esc(r.factory||'—')}</td><td class="num">${money(r.supply)}</td><td class="num">${money(r.statement)}</td><td class="num"><b style="color:${st>=0?'var(--green)':'var(--red)'}">${money(st)}</b></td><td style="white-space:nowrap"><button class="ib" onclick="App.iqfRowAdd('${r.id}')">✏️</button><button class="ib" onclick="App.iqfRowDel('${r.id}')">🗑️</button></td></tr>`;}).join(""):`<tr><td colspan="7" class="empty"><div style="padding:20px"><div style="font-size:34px">❄️</div>لا بيانات — اضغط «⬇️ تحميل 2025-2026» أو «＋ سطر جديد»</div></td></tr>`}
+    <tr style="font-weight:900;background:#f1f5f9"><td colspan="3" class="r">الإجمالى</td><td class="num">${money(T.supply)}</td><td class="num">${money(T.statement)}</td><td class="num">${money(T.settle)}</td><td></td></tr>
+    </tbody></table>`;}
+  return head("❄️","تصفية التجميد","مقارنة مبلغ التوريد (اللى حسبناه للمورد) بكشف المصنع — والفرق هو التصفية · موسم "+App.db.season,
+    `<button class="btn green sm" onclick="App.iqfRowAdd()">＋ سطر جديد</button><button class="btn blue sm" onclick="App.iqfLoad2025()">⬇️ تحميل 2025-2026</button><button class="btn gh sm" onclick="App.iqfPrint()">🖨️ طباعة</button><button class="btn gh sm" onclick="App.iqfExport()">📊 Excel</button>`)+`
+   <div class="grid kpis" style="margin-bottom:14px">
+    ${kpi("إجمالى مبلغ التوريد",m2(T.supply),"المستحق للموردين",'b','📦')}
+    ${kpi("إجمالى كشف الشركة",m2(T.statement),"من المصانع",'gold','🏭')}
+    ${kpi("إجمالى التصفية",m2(T.settle),"الفرق (كشف − توريد)",T.settle>=0?'g':'r','⚖️')}
+    ${kpi("عدد السطور",T.n,"مورد × مصنع",'p','📋')}
+   </div>
+   <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${tabs.map(t=>`<button class="btn ${view===t[0]?'gold':'gh'} sm" onclick="App._iqfView='${t[0]}';App.render()">${t[1]}</button>`).join("")}</div>
+   <div class="card"><div class="card-b p0"><div class="tw">${table}</div></div></div>`;};
+Pages.iqf.meta={title:"تصفية التجميد",crumb:"اللوجستيات والتصدير"};
+
+App.iqfRowAdd=function(id){this._ensureIqf();const r=id?(this.db.iqfRows||[]).find(x=>x.id===id):null;
+  const facs=[...new Set(this.iqfRows().map(x=>x.factory).filter(Boolean))];
+  this.modal(r?"✏️ تعديل سطر تصفية":"➕ سطر تصفية تجميد جديد",`<div class="fg">
+    <div class="field"><label>المورد (الاسم)</label><input id="iqN" value="${r?esc(r.name||''):''}" placeholder="مثال: ايمن معوض" list="iqSupList"><datalist id="iqSupList">${this.accountsBy("supplier").map(a=>`<option value="${esc(a.name)}">`).join("")}</datalist></div>
+    <div class="field"><label>المصنع / الشركة</label><input id="iqF" value="${r?esc(r.factory||''):''}" placeholder="مثال: راية / العين / اللؤلؤة" list="iqFacList"><datalist id="iqFacList">${facs.map(f=>`<option value="${esc(f)}">`).join("")}</datalist></div>
+    <div class="field"><label>مبلغ التوريد (ج.م)</label><input type="number" step="0.01" id="iqSup" value="${r?esc(r.supply):''}" oninput="App._iqCalc()"></div>
+    <div class="field"><label>كشف الشركة (ج.م)</label><input type="number" step="0.01" id="iqStm" value="${r?esc(r.statement):''}" oninput="App._iqCalc()"></div>
+    <div class="field" style="grid-column:span 2"><label>التصفية (كشف − توريد) — اتركها لحساب تلقائى أو عدّلها</label><input type="number" step="0.01" id="iqSet" value="${r&&r.settle!=null?esc(r.settle):''}" placeholder="تلقائى"></div>
+   </div><div class="hint" id="iqHint" style="margin-top:6px"></div>`,
+   `<button class="btn gold" id="iqS">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  this._iqCalc();$("#iqS").onclick=()=>{const name=$("#iqN").value.trim();const factory=$("#iqF").value.trim();const supply=Number($("#iqSup").value)||0;const statement=Number($("#iqStm").value)||0;const setV=$("#iqSet").value.trim();const settle=setV===""?null:Number(setV);
+    if(!factory&&!name){toast("اكتب المورد أو المصنع","err");return;}
+    if(r){r.name=name;r.factory=factory;r.supply=supply;r.statement=statement;r.settle=settle;}
+    else{this.db.iqfRows.push({id:uid(),season:this.db.season,name,factory,supply,statement,settle});}
+    if(factory&&factory.indexOf("اجمالى")<0)this._iqfEnsureFactory(factory);if(name)this._iqfEnsureSupplier(name);
+    this.save();this.closeModal();this.render();toast(r?"تم التعديل ✓":"✅ أُضيف السطر");};};
+App._iqCalc=function(){const s=Number(($("#iqSup")||{}).value)||0,t=Number(($("#iqStm")||{}).value)||0;const h=$("#iqHint");if(h)h.innerHTML="التصفية التلقائية = كشف الشركة − مبلغ التوريد = <b>"+money(t-s)+"</b>";};
+App.iqfRowDel=function(id){this.confirmDel("حذف هذا السطر؟",()=>{this.db.iqfRows=(this.db.iqfRows||[]).filter(x=>x.id!==id);this.save();this.render();toast("تم الحذف");});};
+
+App.iqfFactoryView=function(factory){const g=this.iqfByFactory().find(x=>x.factory===factory);if(!g)return;
+  this.modal("🏭 تفاصيل مصنع — "+esc(factory),`
+    <div class="grid kpis" style="margin-bottom:10px">${kpi("مبلغ التوريد",m2(g.supply),"",'b','📦')}${kpi("كشف الشركة",m2(g.statement),"",'gold','🏭')}${kpi("التصفية",m2(g.settle),"",g.settle>=0?'g':'r','⚖️')}</div>
+    <div class="tw"><table class="t"><thead><tr><th class="r">المورد</th><th>مبلغ التوريد</th><th>كشف الشركة</th><th>التصفية</th></tr></thead><tbody>
+    ${g.rows.map(r=>`<tr><td class="r">${esc(r.name||'—')}</td><td class="num">${money(r.supply)}</td><td class="num">${money(r.statement)}</td><td class="num">${money(App.iqfSettle(r))}</td></tr>`).join("")}
+    </tbody></table></div>`,`<button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);};
+
+App.iqfPrint=function(){const rs=this.iqfRows();const T=this.iqfTotals();
+  let body=`<table><thead><tr><th>#</th><th>المورد</th><th>المصنع</th><th>مبلغ التوريد</th><th>كشف الشركة</th><th>التصفية</th></tr></thead><tbody>`;
+  rs.forEach((r,i)=>body+=`<tr><td>${i+1}</td><td style="text-align:right">${esc(r.name||'—')}</td><td>${esc(r.factory||'—')}</td><td>${money(r.supply)}</td><td>${money(r.statement)}</td><td>${money(this.iqfSettle(r))}</td></tr>`);
+  body+=`<tr style="font-weight:900;background:#f1f5f9"><td colspan="3">الإجمالى</td><td>${money(T.supply)}</td><td>${money(T.statement)}</td><td>${money(T.settle)}</td></tr></tbody></table>`;
+  this.printDoc("تصفية التجميد — "+this.db.season,body,"مقارنة مبلغ التوريد بكشف المصانع");};
+App.iqfExport=function(){const rs=this.iqfRows();const T=this.iqfTotals();const rows=this.xlsxHeaderRows("تصفية التجميد — "+this.db.season,6);
+  rows.push(["#","المورد","المصنع","مبلغ التوريد","كشف الشركة","التصفية"].map(h=>({v:h,s:"hdr"})));
+  rs.forEach((r,i)=>rows.push([{v:i+1,s:"num"},{v:r.name||"",s:"txt"},{v:r.factory||"",s:"txt"},{v:r.supply,s:"num"},{v:r.statement,s:"num"},{v:this.iqfSettle(r),s:"num"}]));
+  rows.push([{v:"الإجمالى",s:"hdr"},{v:"",s:"hdr"},{v:"",s:"hdr"},{v:T.supply,s:"num"},{v:T.statement,s:"num"},{v:T.settle,s:"num"}]);
+  this.exportXLS("تصفية_التجميد",[{name:"التصفية",rows,widths:[5,22,20,16,16,16]}]);};
+
+/* القائمة + الصلاحية */
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);if(!have.iqf)PERMS.push(["iqf","❄️ تصفية التجميد"]);})();
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="tollplants");const at=i>=0?i+1:arr.length;
+  if(!arr.some(x=>x[0]==="iqf"))arr.splice(at,0,["iqf","❄️","تصفية التجميد"]);
+  return arr;};})();
+
+/* نهاية حزمة المتحدة v8 */
+
 App.boot();
 </script>
 </body>
