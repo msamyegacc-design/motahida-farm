@@ -17285,6 +17285,77 @@ App.iqfSupExport=function(){const rs=this.iqfSupRows();const rows=this.xlsxHeade
 
 /* نهاية حزمة المتحدة v10 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v11 — مصانع التجميد (ملخص التوريد من شيت «الاجمالى»)        ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+App.IQF_FAC_2025=[
+  {name:"اليكس تشاينا",qtyB:10070,disc:3,qtyA:9767.9,avg:12.05,amount:117709.5,ptype:"خام"},
+  {name:"طيبة",qtyB:109594,disc:1.82,qtyA:107603.5,avg:29.19,amount:3140993.59,ptype:"مجهز"},
+  {name:"فودد اليانس",qtyB:442601,disc:2.55,qtyA:431316.62,avg:23.79,amount:10261547.08,ptype:"مجهز"},
+  {name:"الزهراء",qtyB:143056,disc:2.46,qtyA:139536.33,avg:22.85,amount:3188160.2,ptype:"مجهز"},
+  {name:"كفر الشيخ",qtyB:36526,disc:2.31,qtyA:35682.06,avg:26.11,amount:931673.9,ptype:"مجهز"},
+  {name:"اللؤلؤة",qtyB:73337,disc:2,qtyA:71870.26,avg:29.57,amount:2124935.96,ptype:"مجهز"},
+  {name:"راية فرست",qtyB:10900,disc:2.71,qtyA:10604.8,avg:26.5,amount:281056.36,ptype:"مجهز"},
+  {name:"ريوس",qtyB:7275,disc:4.49,qtyA:6948.25,avg:19.95,amount:138622.75,ptype:"مجهز"},
+];
+App._ensureIqfFac=function(){if(!Array.isArray(this.db.iqfFac))this.db.iqfFac=[];};
+App.iqfFacRows=function(){this._ensureIqfFac();const s=this.db.season;return (this.db.iqfFac||[]).filter(r=>r.season===s);};
+App.iqfFacTotals=function(){const rs=this.iqfFacRows();let qtyB=0,qtyA=0,amount=0;rs.forEach(r=>{qtyB+=+r.qtyB||0;qtyA+=+r.qtyA||0;amount+=+r.amount||0;});return {qtyB,qtyA,amount,n:rs.length,avg:qtyA?amount/qtyA:0};};
+App.iqfFacLoad=function(){this._ensureIqfFac();const s=this.db.season;
+  if(this.iqfFacRows().length){this.confirmDel("فيه بيانات مصانع تجميد بالفعل فى «"+s+"» — إضافة فوقها؟",()=>App._iqfFacDo());return;}
+  this.modal("⬇️ تحميل توريد المصانع 2025-2026",`<p style="font-size:14px;line-height:1.9">هيتم تحميل <b>${this.IQF_FAC_2025.length} مصنع</b> بالكمية/الخصم/متوسط السعر/المبلغ (إجمالى ${money(this.IQF_FAC_2025.reduce((s,x)=>s+x.amount,0))} ج.م)، وفتح حساب لكل مصنع.</p>`,
+   `<button class="btn green" onclick="App._iqfFacDo()">⬇️ تحميل</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`);};
+App._iqfFacDo=function(){this._ensureIqfFac();const s=this.db.season;
+  this.IQF_FAC_2025.forEach(r=>{this.db.iqfFac.push(Object.assign({id:uid(),season:s},r));
+    if(!this.accountsBy("factory").find(a=>a.name===r.name))this.addAccount({node:"factory",name:r.name,data:{iqf:true}},1);});
+  this.save();this.closeModal();this.render();toast("✅ تم تحميل توريد المصانع");};
+
+Pages.iqffac=function(){App._ensureIqfFac();const rs=App.iqfFacRows();const T=App.iqfFacTotals();
+  return head("🏭","مصانع التجميد — توريد المواسم","الكمية قبل/بعد الخصم ومتوسط السعر والمبلغ لكل مصنع — موسم "+App.db.season,
+    `<button class="btn green sm" onclick="App.iqfFacAdd()">＋ مصنع</button><button class="btn blue sm" onclick="App.iqfFacLoad()">⬇️ تحميل 2025-2026</button><button class="btn gh sm" onclick="App.go('iqf')">❄️ التصفية</button><button class="btn gh sm" onclick="App.iqfFacExport()">📊 Excel</button>`)+`
+   <div class="grid kpis" style="margin-bottom:14px">
+    ${kpi("عدد المصانع",T.n,"",'b','🏭')}
+    ${kpi("الكمية (قبل الخصم)",numf(T.qtyB)+" ك","",'p','⚖️')}
+    ${kpi("الكمية (بعد الخصم)",numf(T.qtyA)+" ك","",'g','✅')}
+    ${kpi("إجمالى المبلغ",m2(T.amount),"متوسط "+money(T.avg)+"/ك",'gold','💰')}
+   </div>
+   <div class="card"><div class="card-b p0"><div class="tw">
+    <table class="t"><thead><tr><th class="r">المصنع</th><th>النوع</th><th>الكمية قبل الخصم</th><th>نسبة الخصم</th><th>الكمية بعد الخصم</th><th>متوسط السعر</th><th>المبلغ</th><th></th></tr></thead><tbody>
+    ${rs.length?rs.map(r=>`<tr class="linkrow" onclick="App.go('statement',{id:'${(App.accountsBy('factory').find(a=>a.name===r.name)||{}).id||''}'})"><td class="r"><b>${esc(r.name)}</b></td><td>${r.ptype==='خام'?'<span class="pill n">خام</span>':'<span class="pill g">مجهز</span>'}</td><td class="num">${numf(r.qtyB)}</td><td class="num">${numf(r.disc)}٪</td><td class="num">${numf(r.qtyA)}</td><td class="num">${money(r.avg)}</td><td class="num"><b>${money(r.amount)}</b></td>
+      <td onclick="event.stopPropagation()"><button class="ib" onclick="App.iqfFacAdd('${r.id}')">✏️</button><button class="ib" onclick="App.iqfFacDel('${r.id}')">🗑️</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty"><div style="padding:20px"><div style="font-size:34px">🏭</div>لا بيانات — اضغط «⬇️ تحميل 2025-2026» أو «＋ مصنع»</div></td></tr>`}
+    <tr style="font-weight:900;background:#f1f5f9"><td class="r">الإجمالى</td><td></td><td class="num">${numf(T.qtyB)}</td><td></td><td class="num">${numf(T.qtyA)}</td><td class="num">${money(T.avg)}</td><td class="num">${money(T.amount)}</td><td></td></tr>
+    </tbody></table></div></div></div>`;};
+Pages.iqffac.meta={title:"مصانع التجميد",crumb:"اللوجستيات والتصدير"};
+App.iqfFacAdd=function(id){this._ensureIqfFac();const r=id?(this.db.iqfFac||[]).find(x=>x.id===id):null;
+  this.modal(r?"✏️ تعديل مصنع":"➕ مصنع تجميد",`<div class="fg">
+    <div class="field"><label>اسم المصنع</label><input id="ifN" value="${r?esc(r.name):''}"></div>
+    <div class="field"><label>النوع</label><select id="ifT"><option ${r&&r.ptype==='مجهز'?'selected':''}>مجهز</option><option ${r&&r.ptype==='خام'?'selected':''}>خام</option></select></div>
+    <div class="field"><label>الكمية قبل الخصم</label><input type="number" step="0.01" id="ifQB" value="${r?esc(r.qtyB):''}" oninput="App._ifCalc()"></div>
+    <div class="field"><label>نسبة الخصم ٪</label><input type="number" step="0.01" id="ifD" value="${r?esc(r.disc):''}" oninput="App._ifCalc()"></div>
+    <div class="field"><label>الكمية بعد الخصم</label><input type="number" step="0.01" id="ifQA" value="${r?esc(r.qtyA):''}"></div>
+    <div class="field"><label>متوسط السعر</label><input type="number" step="0.001" id="ifAv" value="${r?esc(r.avg):''}" oninput="App._ifCalc()"></div>
+    <div class="field" style="grid-column:span 2"><label>المبلغ</label><input type="number" step="0.01" id="ifAm" value="${r?esc(r.amount):''}"></div>
+   </div><div class="hint" id="ifHint" style="margin-top:6px"></div>`,
+   `<button class="btn gold" id="ifS">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  $("#ifS").onclick=()=>{const name=$("#ifN").value.trim();if(!name){toast("اكتب اسم المصنع","err");return;}
+    const qtyB=Number($("#ifQB").value)||0,disc=Number($("#ifD").value)||0;const qtyA=Number($("#ifQA").value)||(qtyB*(1-disc/100));const avg=Number($("#ifAv").value)||0;const amount=Number($("#ifAm").value)||(qtyA*avg);
+    const data={name,ptype:$("#ifT").value,qtyB,disc,qtyA,avg,amount};
+    if(r)Object.assign(r,data);else this.db.iqfFac.push(Object.assign({id:uid(),season:this.db.season},data));
+    if(!this.accountsBy("factory").find(a=>a.name===name))this.addAccount({node:"factory",name,data:{iqf:true}},1);
+    this.save();this.closeModal();this.render();toast(r?"تم التعديل ✓":"✅ أُضيف المصنع");};};
+App._ifCalc=function(){const qb=Number(($("#ifQB")||{}).value)||0,d=Number(($("#ifD")||{}).value)||0,av=Number(($("#ifAv")||{}).value)||0;const qa=qb*(1-d/100);const h=$("#ifHint");if(h)h.innerHTML="الكمية بعد الخصم ≈ <b>"+numf(qa)+"</b> · المبلغ ≈ <b>"+money(qa*av)+"</b>";const qaEl=$("#ifQA");if(qaEl&&!qaEl.value)qaEl.value=qa.toFixed(2);const amEl=$("#ifAm");if(amEl&&!amEl.value&&av)amEl.value=(qa*av).toFixed(2);};
+App.iqfFacDel=function(id){this.confirmDel("حذف هذا المصنع؟",()=>{this.db.iqfFac=(this.db.iqfFac||[]).filter(x=>x.id!==id);this.save();this.render();toast("تم الحذف");});};
+App.iqfFacExport=function(){const rs=this.iqfFacRows();const T=this.iqfFacTotals();const rows=this.xlsxHeaderRows("توريد مصانع التجميد — "+this.db.season,7);
+  rows.push(["المصنع","النوع","قبل الخصم","نسبة الخصم","بعد الخصم","متوسط السعر","المبلغ"].map(h=>({v:h,s:"hdr"})));
+  rs.forEach(r=>rows.push([{v:r.name,s:"txt"},{v:r.ptype,s:"txt"},{v:r.qtyB,s:"num"},{v:r.disc,s:"num"},{v:r.qtyA,s:"num"},{v:r.avg,s:"num"},{v:r.amount,s:"num"}]));
+  rows.push([{v:"الإجمالى",s:"hdr"},{v:"",s:"hdr"},{v:T.qtyB,s:"num"},{v:"",s:"hdr"},{v:T.qtyA,s:"num"},{v:T.avg,s:"num"},{v:T.amount,s:"num"}]);
+  this.exportXLS("مصانع_التجميد",[{name:"المصانع",rows,widths:[20,10,14,12,14,12,16]}]);};
+(function(){if(typeof PERMS==="undefined")return;const have={};PERMS.forEach(p=>have[p[0]]=1);if(!have.iqffac)PERMS.push(["iqffac","🏭 مصانع التجميد (ملخص التوريد)"]);})();
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){const arr=orig();
+  const i=arr.findIndex(x=>x[0]==="iqfsup");const at=i>=0?i+1:(arr.findIndex(x=>x[0]==="iqf")+1||arr.length);if(!arr.some(x=>x[0]==="iqffac"))arr.splice(at,0,["iqffac","🏭","مصانع التجميد"]);
+  return arr;};})();
+/* نهاية حزمة المتحدة v11 */
+
 App.boot();
 </script>
 </body>
