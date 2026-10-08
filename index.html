@@ -18328,6 +18328,74 @@ App.iqfPricePeriodApply=function(kind){const g=id=>(document.getElementById(id)|
 
 
 
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v19 — أسعار الكرتون لكل شركة (اختيار الشركة)               ║
+   ║  سعر خاص لكل شركة حسب اليوم والصنف + سعر «عام» افتراضى — بلا كسر للقديم      ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* شركة العميل الفرعى (للتسعير) */
+App.cartonCompanyOf=function(custId){const a=this.acct(custId);if(!a)return '';if(a.data&&a.data.cartonCompany)return a.id;return (a.data&&a.data.companyId)||a.id;};
+
+/* بحث السعر: خاص بالشركة ← عام (قديم) */
+App.cartonPriceRaw=function(date,varId,companyId){const s=this.db.season;companyId=companyId||'';return (this.db.cartonPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.companyId||'')===companyId);};
+App.cartonPrice=function(date,varId,companyId){if(companyId===undefined)companyId=this._cartonCtxCompany||'';const s=this.db.season;const arr=(this.db.cartonPrices||[]).filter(x=>x.season===s&&x.date===date&&x.varId===varId);
+  let r=companyId?arr.find(x=>(x.companyId||'')===companyId):null;
+  if(!r)r=arr.find(x=>!x.companyId);
+  if(!r&&companyId)r=arr[0];
+  return r?(+r.price||0):0;};
+App.setCartonPrice=function(date,varId,price,companyId){this._ensureCarton();const s=this.db.season;price=+price||0;companyId=companyId||'';
+  let r=(this.db.cartonPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.companyId||'')===companyId);
+  if(r)r.price=price;else this.db.cartonPrices.push({season:s,date,varId,companyId,price});
+  (this.db.cartonEntries||[]).filter(e=>e.season===s&&e.date===date&&e.varId===varId).forEach(e=>{const cp=this.cartonPrice(date,varId,this.cartonCompanyOf(e.custId));e.price=cp;e.amount=(Number(e.qty)||0)*cp;this._cartonRepost(e);});
+  this.save();};
+
+/* حفظ حركة عميل: السعر حسب شركته */
+App.setCartonEntry=function(custId,date,varId,qty){this._ensureCarton();const s=this.db.season;qty=Number(qty)||0;
+  let e=(this.db.cartonEntries||[]).find(x=>x.season===s&&x.custId===custId&&x.date===date&&x.varId===varId);
+  const companyId=this.cartonCompanyOf(custId);const price=varId==='disc'?1:this.cartonPrice(date,varId,companyId);
+  if(!e){if(!qty){return null;}e={id:uid(),season:s,custId,date,varId,qty,price,amount:qty*price,postId:null};this.db.cartonEntries.push(e);}
+  else{e.qty=qty;e.price=price;e.amount=qty*price;}
+  this._cartonRepost(e);
+  if(!qty){if(e.postId)this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);this.db.cartonEntries=this.db.cartonEntries.filter(x=>x.id!==e.id);}
+  this.save(true);return e;};
+
+/* ضبط سياق الشركة قبل دوال العرض (حتى تستخدم cartonPrice السعر الصحيح) */
+(function(){const o=Pages.cartonClient;if(typeof o==="function"){Pages.cartonClient=function(){const id=App.arg&&App.arg.id;App._cartonCtxCompany=id?App.cartonCompanyOf(id):'';return o.apply(this,arguments);};}})();
+(function(){["cartonExportCust","cartonPrintCust"].forEach(fn=>{const o=App[fn];if(typeof o!=="function")return;App[fn]=function(id){App._cartonCtxCompany=id?App.cartonCompanyOf(id):'';return o.apply(this,arguments);};});
+  const oa=App.cartonCompanyAgg;if(typeof oa==="function")App.cartonCompanyAgg=function(companyId){App._cartonCtxCompany=companyId||'';return oa.apply(this,arguments);};})();
+
+/* خلية الإدخال فى كشف العميل — بسياق شركته */
+App.cartonCell=function(custId,inp){App._cartonCtxCompany=this.cartonCompanyOf(custId);const d=inp.getAttribute("data-d");const v=inp.getAttribute("data-v");const val=Number(inp.value)||0;
+  this.setCartonEntry(custId,d,v,val);const did=this._did(d);
+  if(v!=='disc'){const price=this.cartonPrice(d,v,this.cartonCompanyOf(custId));const amtEl=document.getElementById("camt_"+did+"_"+v);if(amtEl)amtEl.innerHTML="<b>"+(val*price?money(val*price):'—')+"</b>";
+    let rq=0,ra=0;this.cartonVars().forEach(vr=>{const e=this.getCartonEntry(custId,d,vr.id);if(e){rq+=e.qty;ra+=e.amount;}});
+    const rqEl=document.getElementById("crq_"+did);if(rqEl)rqEl.innerHTML="<b>"+(rq?numf(rq):'—')+"</b>";
+    const raEl=document.getElementById("cra_"+did);if(raEl)raEl.innerHTML="<b>"+(ra?money(ra):'—')+"</b>";}
+  const t=this.cartonCustTotals(custId);const set=(id,txt)=>{const el=document.getElementById(id);if(el)el.textContent=txt;};
+  set("ctotQ",numf(t.qty));set("ctotA",money(t.amt));set("ctotD",money(t.disc));set("ctotN",money(t.net));};
+
+/* صفحة الأسعار — باختيار الشركة */
+App._cartonPF=App._cartonPF||{companyId:''};
+App.cartonPriceCell=function(inp){const u=this.auth.user;if(!(u&&(u.admin||this.can("cartonEditPrice")))){toast("🔒 ليس لديك صلاحية تعديل الأسعار","err");inp.value=(this.cartonPriceRaw(inp.getAttribute("data-d"),inp.getAttribute("data-v"),this._cartonPF.companyId)||{}).price||'';return;}
+  const d=inp.getAttribute("data-d");const v=inp.getAttribute("data-v");const val=Number(inp.value)||0;const cid=this._cartonPF.companyId||'';
+  this.setCartonPrice(d,v,val,cid);toast("✅ تم تحديث السعر"+(cid?(" — "+((this.acct(cid)||{}).name||'')):" (عام)"));};
+Pages.cartonPrices=function(){App._ensureCarton();const vars=App.cartonVars();const dates=App.cartonDatesList();const comps=App.cartonCompanies();
+  const st=App._cartonPF;App._cartonCtxCompany=st.companyId||'';
+  const sel=`<select onchange="App._cartonPF.companyId=this.value;App.render()" style="padding:6px 10px;border-radius:8px;border:1px solid #d6dee5;font-weight:800;background:#eef4ff;color:#13324a"><option value="">عام (كل الشركات)</option>${comps.map(c=>`<option value="${c.id}" ${c.id===st.companyId?'selected':''}>${esc(c.name)}</option>`).join("")}</select>`;
+  const headCols=vars.map(v=>`<th style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const rows=dates.length?dates.map(d=>`<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(fmtDate(d))}</td>${vars.map(v=>{const r=App.cartonPriceRaw(d,v.id,st.companyId);const p=r?(+r.price||0):'';return `<td style="padding:2px"><input type="number" step="0.01" value="${p||''}" data-d="${d}" data-v="${v.id}" placeholder="${st.companyId?'عام':'0'}" style="width:78px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center" oninput="App.cartonPriceCell(this)"></td>`;}).join("")}</tr>`).join(""):`<tr><td colspan="${vars.length+1}" class="empty">لا أيام — اضغط «＋ يوم»</td></tr>`;
+  return head("💲","أسعار الكرتون العربى"+(st.companyId?(" — "+esc((App.acct(st.companyId)||{}).name||'')):" (عام)"),"اختر الشركة لإدخال أسعارها الخاصة · «عام» سعر افتراضى لأى شركة ملهاش سعر خاص — يسمع فوراً فى الحسابات",
+    `<button class="btn green sm" onclick="App.cartonAddDay()">＋ يوم</button><button class="btn gold sm" onclick="App.cartonVarManage()">🏷️ الأصناف</button><button class="btn gh sm" onclick="App.cartonExportPrices()">📊 Excel</button><button class="btn gh sm" onclick="App.go('cartonClients')">↩ العملاء</button>`)+`
+   <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><span style="font-weight:800;font-size:12.5px">🏢 الشركة:</span>${sel}</div>
+   <div class="hint" style="margin-bottom:10px;padding:10px;background:rgba(46,109,240,.07);border-radius:10px">💡 السعر الخاص بالشركة له الأولوية؛ لو الخلية فاضية بتاخد السعر «العام». أى تعديل يعيد حساب مبالغ عملاء هذه الشركة فى نفس اليوم والصنف فوراً.</div>
+   <div class="card"><div class="card-b p0"><div class="tw" style="max-height:70vh;overflow:auto"><table class="t"><thead><tr><th style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th>${headCols}</tr></thead><tbody>${rows}</tbody></table></div></div></div>`;};
+Pages.cartonPrices.meta={title:"أسعار الكرتون",crumb:"عملاء كرتون عربى"};
+
+/* نهاية حزمة المتحدة v19 */
+
+
+
 App.boot();
 </script>
 </body>
