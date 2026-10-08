@@ -18198,6 +18198,136 @@ App.showPrayer=function(){const t=this.prayerTimes(new Date(),30.3765,30.5177);c
 
 
 
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v18 — إعادة ترتيب النشاط الزراعى + أسعار شراء لكل مورد خارجى ║
+   ║  • موردو التجميد تحت اللوجستيات · باقى عناصر التجميد تحت «المفرش والتجهيز»    ║
+   ║  • عملاء التجميد → «موردين الفراولة الخارجى» · حذف بند «توريد فراولة»         ║
+   ║  • زر «＋ إضافة تاريخ» فى صفحات الأسعار (اليوم ثم التالى) ضمن الصلاحيات        ║
+   ║  • أسعار شراء الخام الخارجى: سعر مستقل لكل مورد خارجى اشتريت منه              ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* ===== (أ) أسعار الشراء بالمورد الخارجى ===== */
+App.iqfExtSups=function(){return this.iqfClients().filter(x=>this.iqfClientType(x)==='sup'&&this.iqfSupSource(x.id)==='ext');};
+App.iqfSupPriceRaw=function(date,varId,wtype,src,supId){const s=this.db.season;wtype=wtype||"";src=src||"";supId=supId||"";return (this.db.iqfSupPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype&&(x.src||"")===src&&(x.supId||"")===supId);};
+App.iqfSupPrice=function(date,varId,wtype,src,supId){const s=this.db.season;const arr=(this.db.iqfSupPrices||[]).filter(x=>x.season===s&&x.date===date&&x.varId===varId);wtype=wtype||"";src=src||"";supId=supId||"";
+  let r=arr.find(x=>(x.wtype||"")===wtype&&(x.src||"")===src&&(x.supId||"")===supId);
+  if(!r&&supId)r=arr.find(x=>(x.wtype||"")===wtype&&(x.src||"")===src&&!x.supId);
+  if(!r)r=arr.find(x=>(x.wtype||"")===wtype&&!x.src&&!x.supId);
+  if(!r)r=arr.find(x=>!x.wtype&&!x.src&&!x.supId);
+  if(!r)r=arr[0];
+  return r?(+r.price||0):0;};
+App.setIqfSupPrice=function(date,varId,p,wtype,src,supId){this._ensureIqfP();const s=this.db.season;p=+p||0;wtype=wtype||"";src=src||"";supId=supId||"";
+  let r=(this.db.iqfSupPrices||[]).find(x=>x.season===s&&x.date===date&&x.varId===varId&&(x.wtype||"")===wtype&&(x.src||"")===src&&(x.supId||"")===supId);
+  if(r)r.price=p;else this.db.iqfSupPrices.push({season:s,date,varId,wtype,src,supId,price:p});
+  (this.db.iqfCEntries||[]).filter(e=>e.season===s&&e.date===date&&e.varId===varId&&this._isSup(e.acctId)).forEach(e=>this._iqfCRepost(e));this.save();};
+App._iqfSupIdFor=function(acctId){return this.iqfSupSource(acctId)==='ext'?acctId:'';};
+App._iqfSupBuy=function(e){const src=this.iqfSupSource(e.acctId);return this.iqfSupPrice(e.date,e.varId,this._iqfWt(e),src,src==='ext'?e.acctId:'');};
+App.iqfSupRowValues=function(supId,date){const vars=this.iqfCVars();const wt=this.iqfSupDateType(supId,date);const fac=this.iqfSupDateFactory(supId,date);const src=this.iqfSupSource(supId);const sid=src==='ext'?supId:'';let qty=0,pur=0,sale=0;
+  vars.forEach(v=>{const e=this.getIqfCEntry(supId,date,v.id);const q=e?e.qty:0;qty+=q;pur+=q*this.iqfSupPrice(date,v.id,wt,src,sid);sale+=q*this.iqfFacPrice(date,v.id,wt,fac);});return {qty,pur,sale,margin:sale-pur};};
+App._iqfCRepost=function(e){
+  if(e.postId){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);e.postId=null;}
+  if(e.postSup){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postSup);e.postSup=null;}
+  if(e.postFac){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postFac);e.postFac=null;}
+  const acc=this.acct(e.acctId);if(!acc)return;const ip=this.exportPrepAcct();const vn=this.iqfCVarName(e.varId);const q=Number(e.qty)||0;const wt=this._iqfWt(e);
+  if(this.iqfClientType(acc)==='fac'){
+    const amt=q*(Number(e.price)||this.iqfFacPrice(e.date,e.varId,wt,e.acctId)||0);if(!amt)return;
+    const p=this.post({date:e.date,desc:"تجميد — تسليم "+acc.name+" / "+vn+" ("+numf(q)+"×"+money(q?amt/q:0)+")",debit:e.acctId,credit:ip.id,amount:amt,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt}});e.postId=p.id;return;}
+  const src=this.iqfSupSource(e.acctId);const sid=src==='ext'?e.acctId:'';const supP=this.iqfSupPrice(e.date,e.varId,wt,src,sid);const facP=this.iqfFacPrice(e.date,e.varId,wt,e.factoryId);
+  const pur=q*supP;const sale=q*facP;const sn=this.iqfSrcName(src);
+  if(pur){const p=this.post({date:e.date,desc:"توريد فراولة ("+wt+"/"+sn+") — "+acc.name+" / "+vn+" ("+numf(q)+"×"+money(supP)+")"+(e.factoryId?(" → "+((this.acct(e.factoryId)||{}).name||"")):""),debit:ip.id,credit:e.acctId,amount:pur,kind:"supply",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt,src,side:'pur',factoryId:e.factoryId||null}});e.postSup=p.id;}
+  if(sale&&e.factoryId&&this.acct(e.factoryId)){const fac=this.acct(e.factoryId);const p=this.post({date:e.date,desc:"فراولة ("+wt+") — تسليم "+fac.name+" / "+vn+" (مورد "+acc.name+") ("+numf(q)+"×"+money(facP)+")",debit:e.factoryId,credit:ip.id,amount:sale,kind:"sale",meta:{iqfC:1,entry:e.id,varId:e.varId,wtype:wt,side:'sale',supId:e.acctId}});e.postFac=p.id;}
+};
+(function(){const orig=App.setIqfSupEntry;App.setIqfSupEntry=function(supId,date,varId,qty,factoryId){const e=orig.apply(this,arguments);if(e){const src=this.iqfSupSource(supId);e.price=this.iqfSupPrice(date,varId,this._iqfWt(e),src,src==='ext'?supId:'');e.amount=(Number(e.qty)||0)*e.price;this.save(true);}return e;};})();
+
+/* ===== (ب) صفحتا الأسعار: زر إضافة تاريخ + مورد خارجى محدد ===== */
+App._iqfPPF=App._iqfPPF||{};if(!App._iqfPPF.ptype)App._iqfPPF.ptype="خام";if(!App._iqfPPF.src)App._iqfPPF.src="ext";if(App._iqfPPF.supId==null)App._iqfPPF.supId="";
+App._iqfFPF=App._iqfFPF||{};if(!App._iqfFPF.ptype)App._iqfFPF.ptype="مجهز";if(App._iqfFPF.facId==null)App._iqfFPF.facId="";
+App._canEditPrice=function(){const u=this.auth.user;return !!(u&&(u.admin||this.can("cartonEditPrice")));};
+App.iqfPriceAddDay=function(){if(!this._canEditPrice()){toast("🔒 ليس لديك صلاحية إضافة/تعديل الأسعار","err");return;}const d=this._nextIqfDay();this.addIqfCDate(d);this.render();toast("✅ أُضيف "+this.iqfDateLbl(d));};
+App._iqfPriceCell=function(kind,inp){const d=inp.getAttribute("data-d");const v=inp.getAttribute("data-v");const val=Number(inp.value)||0;
+  if(!this._canEditPrice()){toast("🔒 ليس لديك صلاحية تعديل الأسعار","err");return;}
+  if(kind==='sup'){const st=this._iqfPPF;this.setIqfSupPrice(d,v,val,st.ptype,st.src,st.src==='ext'?st.supId:'');}
+  else{if(!this._iqfFPF.facId){toast("اختر المصنع أولاً","err");return;}this.setIqfFacPrice(d,v,val,this._iqfFPF.ptype,this._iqfFPF.facId);}
+  toast("✅ تم تحديث السعر");};
+App._iqfPricesPage=function(kind){App._ensureIqfC();App._ensureIqfP();const vars=App.iqfCVars();const dates=App.iqfCDatesList();
+  const isFac=kind==='fac';const st=isFac?App._iqfFPF:App._iqfPPF;const facs=App.iqfClients().filter(x=>App.iqfClientType(x)==='fac');const exts=App.iqfExtSups();
+  if(isFac&&!st.facId&&facs.length)st.facId=facs[0].id;
+  if(!isFac&&st.src==='ext'&&!st.supId&&exts.length)st.supId=exts[0].id;
+  const getRaw=isFac?(d,v)=>App.iqfFacPriceRaw(d,v,st.ptype,st.facId):(d,v)=>App.iqfSupPriceRaw(d,v,st.ptype,st.src,st.src==='ext'?st.supId:'');
+  const stName=isFac?'_iqfFPF':'_iqfPPF';
+  const typeChips=["خام","مجهز"].map(t=>`<button class="btn ${st.ptype===t?'gold':'gh'} sm" onclick="App.${stName}.ptype='${t}';App.render()">${t}</button>`).join("");
+  const srcChips=!isFac?App.IQF_SRC.map(x=>`<button class="btn ${st.src===x[0]?'blue':'gh'} sm" onclick="App._iqfPPF.src='${x[0]}';App.render()">${x[1]}</button>`).join(""):'';
+  const extSelector=(!isFac&&st.src==='ext')?`<span style="font-weight:800;font-size:12.5px;margin-inline-start:10px">👨‍🌾 المورد:</span><select onchange="App._iqfPPF.supId=this.value;App.render()" style="padding:6px 10px;border-radius:8px;border:1px solid #d6dee5;font-weight:700"><option value="">— سعر عام لكل الخارجى —</option>${exts.map(f=>`<option value="${f.id}" ${f.id===st.supId?'selected':''}>${esc(f.name)}</option>`).join("")}</select>`:'';
+  const facSelector=isFac?`<span style="font-weight:800;font-size:12.5px;margin-inline-start:10px">🏭 المصنع:</span><select onchange="App._iqfFPF.facId=this.value;App.render()" style="padding:6px 10px;border-radius:8px;border:1px solid #d6dee5;font-weight:700">${facs.length?facs.map(f=>`<option value="${f.id}" ${f.id===st.facId?'selected':''}>${esc(f.name)}</option>`).join(""):'<option value="">— لا مصانع —</option>'}</select>`:'';
+  const headCols=vars.map(v=>`<th style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const canGrid=!isFac||st.facId;
+  const rows=canGrid&&dates.length?dates.map(d=>`<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(App.iqfDateLbl(d))}</td>${vars.map(v=>{const r=getRaw(d,v.id);const p=r?(+r.price||0):'';return `<td style="padding:2px"><input type="number" step="0.01" value="${p||''}" data-d="${d}" data-v="${v.id}" placeholder="0" style="width:76px;padding:5px;border:1px solid #e2e8f0;border-radius:6px;text-align:center" oninput="App._iqfPriceCell('${kind}',this)"></td>`;}).join("")}</tr>`).join(""):`<tr><td colspan="${vars.length+1}" class="empty">${isFac&&!st.facId?'اختر مصنعاً أولاً':'لا أيام — اضغط «＋ إضافة تاريخ»'}</td></tr>`;
+  const srcLbl=isFac?("لكل مصنع — "+st.ptype):("سعر الشراء — "+st.ptype+" · "+App.iqfSrcName(st.src)+(st.src==='ext'&&st.supId?(" · "+((App.acct(st.supId)||{}).name||"")):""));
+  return head("💲",isFac?"أسعار بيع الفراولة (للمصانع)":"أسعار شراء الفراولة (من الموردين)",
+    srcLbl+" · يوم بيوم أو فترة — يسمع فوراً فى الحسابات",
+    `<button class="btn green sm" onclick="App.iqfPriceAddDay()">＋ إضافة تاريخ</button><button class="btn blue sm" onclick="App.iqfPricePeriod('${kind}')">📅 تسعير فترة</button><button class="btn gold sm" onclick="App.iqfCVarManage()">🏷️ الأصناف</button><button class="btn gh sm" onclick="App.go('iqfclients')">↩ الموردين</button>`)+`
+   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+     <span style="font-weight:800;font-size:12.5px">🔎 النوع:</span>${typeChips}
+     ${!isFac?('<span style="font-weight:800;font-size:12.5px;margin-inline-start:10px">💰 المصدر:</span>'+srcChips):''}${extSelector}${facSelector}
+   </div>
+   <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">💡 ${isFac?'لكل مصنع قائمة أسعار مستقلة حسب اليوم والصنف والنوع.':'سعر الشراء مستقل لكل مصدر (الملك/الشركاء/خارجى) ولكل نوع · فى «خارجى» تقدر تحدّد مورد وتدخل سعره الخاص، أو تسيب «سعر عام».'} «＋ إضافة تاريخ» يكتب اليوم ثم التالى تلقائياً · «📅 تسعير فترة» لمدة كاملة.</div>
+   <div class="card"><div class="card-b p0"><div class="tw" style="max-height:64vh;overflow:auto"><table class="t"><thead><tr><th style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th>${headCols}</tr></thead><tbody>${rows}</tbody></table></div></div></div>`;};
+Pages.iqfsupprices=function(){return App._iqfPricesPage('sup');};Pages.iqfsupprices.meta={title:"أسعار شراء الفراولة",crumb:"المفرش والتجهيز"};
+Pages.iqffacprices=function(){return App._iqfPricesPage('fac');};Pages.iqffacprices.meta={title:"أسعار بيع الفراولة",crumb:"المفرش والتجهيز"};
+
+/* تسعير فترة — بالمورد الخارجى */
+App.iqfPricePeriod=function(kind){const vars=this.iqfCVars();const st=kind==='fac'?this._iqfFPF:this._iqfPPF;const facs=this.iqfClients().filter(x=>this.iqfClientType(x)==='fac');const exts=this.iqfExtSups();
+  const srcRow=kind==='sup'?`<label style="display:block">💰 المصدر<select id="ppSrc" onchange="var e=document.getElementById('ppExtWrap');if(e)e.style.display=this.value==='ext'?'block':'none'" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px">${this.IQF_SRC.map(x=>`<option value="${x[0]}" ${x[0]===st.src?'selected':''}>${x[1]}</option>`).join("")}</select></label>
+     <label id="ppExtWrap" style="display:${st.src==='ext'?'block':'none'}">👨‍🌾 المورد الخارجى<select id="ppExt" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option value="">— عام لكل الخارجى —</option>${exts.map(f=>`<option value="${f.id}" ${f.id===st.supId?'selected':''}>${esc(f.name)}</option>`).join("")}</select></label>`:'';
+  const facRow=kind==='fac'?`<label style="display:block">🏭 المصنع<select id="ppFac" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px">${facs.map(f=>`<option value="${f.id}" ${f.id===st.facId?'selected':''}>${esc(f.name)}</option>`).join("")}</select></label>`:'';
+  this.modal("📅 تسعير فترة — "+(kind==='fac'?'بيع للمصنع':'شراء من الموردين'),`
+    <div class="hint" style="margin-bottom:10px;padding:8px;background:rgba(46,109,240,.07);border-radius:8px">يُطبَّق السعر على كل الأيام المسجّلة داخل المدى. اختر «كل الأصناف» أو صنفاً محدداً.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <label style="display:block">من تاريخ<input type="date" id="ppFrom" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+      <label style="display:block">إلى تاريخ<input type="date" id="ppTo" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+      <label style="display:block">الصنف<select id="ppVar" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option value="">كل الأصناف</option>${vars.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join("")}</select></label>
+      <label style="display:block">النوع<select id="ppType" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"><option ${st.ptype==='خام'?'selected':''}>خام</option><option ${st.ptype==='مجهز'?'selected':''}>مجهز</option></select></label>
+      ${srcRow}${facRow}
+      <label style="display:block">السعر<input type="number" step="0.01" id="ppPrice" placeholder="0.00" style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:8px;margin-top:4px"></label>
+    </div>`,
+    `<button class="btn green" onclick="App.iqfPricePeriodApply('${kind}')">✅ تطبيق</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);};
+App.iqfPricePeriodApply=function(kind){const g=id=>(document.getElementById(id)||{}).value;
+  if(!this._canEditPrice()){toast("🔒 ليس لديك صلاحية تعديل الأسعار","err");return;}
+  const from=g('ppFrom'),to=g('ppTo'),varId=g('ppVar'),type=g('ppType')||'خام',price=Number(g('ppPrice'))||0;
+  const facId=kind==='fac'?g('ppFac'):'';const src=kind==='sup'?(g('ppSrc')||'ext'):'';const supId=(kind==='sup'&&src==='ext')?g('ppExt'):'';
+  if(!from||!to){toast('حدّد الفترة','err');return;}
+  if(kind==='fac'&&!facId){toast('اختر المصنع','err');return;}
+  let f=new Date(from),t=new Date(to);if(t<f){const x=f;f=t;t=x;}
+  const dates=this.iqfCDatesList().filter(d=>{const x=new Date(d);return x>=f&&x<=t;});
+  if(!dates.length){toast('لا أيام مسجّلة داخل المدى — أضف الأيام أولاً','err');return;}
+  const vs=varId?[{id:varId}]:this.iqfCVars();let n=0;
+  dates.forEach(d=>vs.forEach(v=>{if(kind==='sup')this.setIqfSupPrice(d,v.id,price,type,src,supId);else this.setIqfFacPrice(d,v.id,price,type,facId);n++;}));
+  if(kind==='sup'){this._iqfPPF.ptype=type;this._iqfPPF.src=src;this._iqfPPF.supId=supId;}else this._iqfFPF.ptype=type;
+  this.closeModal();toast('✅ تم تسعير '+n+' خلية');this.render();};
+
+/* ===== (ج) تسمية «موردين الفراولة الخارجى» ===== */
+(function(){const orig=Pages.iqfclients;if(typeof orig==="function"){Pages.iqfclients=function(){let h=orig.apply(this,arguments);if(typeof h==="string")h=h.replace(/عملاء التجميد/g,"موردين الفراولة الخارجى").replace(/🧊/g,"👨‍🌾");return h;};Pages.iqfclients.meta={title:"موردين الفراولة الخارجى",crumb:"المفرش والتجهيز"};}})();
+
+/* ===== (د) إعادة ترتيب القوائم ===== */
+(function(){if(!App.navItemsAll)return;const orig=App.navItemsAll.bind(App);App.navItemsAll=function(){let arr=orig();
+  const drop=["strawsupply","iqfclients","iqffac","iqfsupprices","iqffacprices","iqf","iqfsup"];
+  arr=arr.filter(x=>x[0]==="_g"||drop.indexOf(x[0])<0);
+  const gi=arr.findIndex(x=>x[0]==="_g"&&x[1]==="اللوجستيات والتصدير للخارج");
+  if(gi>=0){let j=gi+1;while(j<arr.length&&arr[j][0]!=="_g")j++;arr.splice(j,0,["iqfsup","👨‍🌾","موردو التجميد"]);}
+  return arr;};})();
+
+/* ===== (هـ) عناصر التجميد كقائمة فرعية تحت «المفرش والتجهيز» ===== */
+(function(){if(!App._navFlyout)return;const orig=App._navFlyout.bind(App);App._navFlyout=function(p){let h=orig(p)||"";
+  if(p&&p[0]==="mafrash"){const tt=s=>this.tr(s);const L=(r,ic,lbl)=>this.canPage(r)?`<a onclick="App.topGo('${r}')"><span class="i">${ic}</span>${esc(lbl)}</a>`:"";
+    const block=L("iqfclients","👨‍🌾","موردين الفراولة الخارجى")+L("iqffac","🏭","مصانع التجميد")+L("iqfsupprices","💲","أسعار شراء الفراولة")+L("iqffacprices","💲","أسعار بيع الفراولة")+L("iqf","❄️","تصفية التجميد");
+    if(block)h=(h||"")+`<div class="hd">❄️ ${tt("الفراولة الخارجى والتجميد")}</div>`+block;}
+  return h||null;};})();
+
+/* نهاية حزمة المتحدة v18 */
+
+
+
 App.boot();
 </script>
 </body>
