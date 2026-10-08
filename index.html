@@ -16511,6 +16511,184 @@ App.cartonExportSummary=function(){const vars=this.cartonVars();const dates=this
 
 /* نهاية حزمة المتحدة v3 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v4 — هيكل شركات عملاء عربى (شركة ← عملاء فرعيين)          ║
+   ║     كشف اجمالى للشركة + كشف تفصيلى لكل عميل فرعى + ترحيل على الشركة         ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* ---------- شركات عملاء عربى + العملاء الفرعيين ---------- */
+App.cartonCompanies=function(){return this.accountsBy("customer").filter(a=>a.data&&a.data.cartonCompany);};
+App.cartonSubsOf=function(companyId){return this.accountsBy("customer").filter(a=>a.data&&a.data.carton&&a.data.companyId===companyId);};
+App.cartonCustomers=function(){return this.accountsBy("customer").filter(a=>a.data&&a.data.carton);};/* كل العملاء الفرعيين */
+App.cartonCompanyOf=function(subId){const s=this.acct(subId);const cid=s&&s.data&&s.data.companyId;return cid?this.acct(cid):null;};
+
+/* الترحيل المحاسبى على الشركة (المدين بكامل التوريد) — أو على الفرعى لو مش تابع لشركة */
+App._cartonRepost=function(e){
+  if(e.postId){this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);e.postId=null;}
+  const amt=Number(e.amount)||0;const sub=this.acct(e.custId);if(!sub)return;
+  const companyId=(sub.data&&sub.data.companyId)||e.custId;const target=this.acct(companyId)?companyId:e.custId;
+  if(e.varId==='disc'){if(!amt)return;const dc=this.revAcct("خصم كرتون عربى");
+    const p=this.post({date:e.date,desc:"خصم كرتون عربى — "+sub.name,debit:dc.id,credit:target,amount:amt,kind:"sale",meta:{carton:1,cartonEntry:e.id,disc:1,subId:e.custId,companyId}});
+    e.postId=p.id;return;}
+  if(!amt)return;
+  const rev=this.revAcct("إيرادات كرتون عربى");
+  const locId=(sub.data&&sub.data.locId)||(this.acct(companyId)&&this.acct(companyId).data&&this.acct(companyId).data.locId)||null;
+  const loc=locId?this.locById(locId):null;const cropId=loc?((this.mainCrop(loc)||{}).id||null):null;
+  const vn=this.cartonVarName(e.varId);
+  const p=this.post({date:e.date,desc:"كرتون عربى — "+sub.name+" / "+vn+" ("+numf(e.qty)+" × "+money(e.price)+")",debit:target,credit:rev.id,amount:amt,kind:"sale",cropId,locId,meta:{carton:1,cartonEntry:e.id,varId:e.varId,subId:e.custId,companyId}});
+  e.postId=p.id;};
+
+/* إجماليات شركة = مجموع فروعها */
+App.cartonCompanyTotals=function(companyId){let qty=0,amt=0,disc=0;this.cartonSubsOf(companyId).forEach(s=>{const t=this.cartonCustTotals(s.id);qty+=t.qty;amt+=t.amt;disc+=t.disc;});return {qty,amt,disc,net:amt-disc};};
+
+/* ---------- إضافة/تعديل شركة ---------- */
+App.cartonCompanyAdd=function(id){const a=id?this.acct(id):null;
+  const locOpts=`<option value="">— بدون موقع —</option>`+this.db.locations.map(l=>`<option value="${l.id}" ${a&&a.data&&a.data.locId===l.id?'selected':''}>${esc(l.name)}</option>`).join("");
+  this.modal(a?"✏️ تعديل شركة عملاء عربى":"🏢 شركة عملاء عربى جديدة",`<div class="fg">
+    <div class="field" style="grid-column:span 2"><label>اسم الشركة (العميل الرئيسى)</label><input id="coN" value="${a?esc(a.name):''}" placeholder="مثال: اجريكانا"></div>
+    <div class="field"><label>الهاتف</label><input id="coPh" value="${a?esc((a.data&&a.data.phone)||''):''}"></div>
+    <div class="field"><label>الموقع (اختيارى)</label><select id="coLoc">${locOpts}</select></div>
+    <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="coNo" value="${a?esc((a.data&&a.data.notes)||''):''}"></div>
+   </div>
+   <div class="hint" style="margin-top:6px">الشركة هى العميل الرئيسى اللى بنبيعله — كل توريد العملاء الفرعيين بيتجمّع عليها (مدين عليها) ويظهر فى كشف حسابها وفى الكشف الإجمالى.</div>`,
+   `<button class="btn gold" id="coS">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  $("#coS").onclick=()=>{const n=$("#coN").value.trim();if(!n){toast("اكتب اسم الشركة","err");return;}
+    const data={cartonCompany:true,phone:$("#coPh").value.trim(),locId:$("#coLoc").value||null,notes:$("#coNo").value.trim()};
+    if(a){a.name=n;a.data=Object.assign(a.data||{},data);}else{const acc=this.addAccount({node:"customer",name:n,cat:"شركة كرتون عربى",data});}
+    this.save();this.closeModal();this.render();toast(a?"تم التعديل ✓":"✅ أُنشئت الشركة");};};
+App.cartonCompanyDel=function(id){const subs=this.cartonSubsOf(id);
+  this.confirmDel(subs.length?("للشركة "+subs.length+" عميل فرعى — حذفها سيحذفهم وكل حركاتهم وقيودهم. متابعة؟"):"حذف هذه الشركة؟",()=>{
+    subs.forEach(s=>{(this.db.cartonEntries||[]).filter(e=>e.custId===s.id).forEach(e=>{if(e.postId)this.db.postings=(this.db.postings||[]).filter(p=>p.id!==e.postId);});
+      this.db.cartonEntries=(this.db.cartonEntries||[]).filter(e=>e.custId!==s.id);});
+    const delIds=[id].concat(subs.map(s=>s.id));
+    this.db.accounts=(this.db.accounts||[]).filter(x=>delIds.indexOf(x.id)<0);
+    this.save();this.render();toast("تم الحذف");});};
+
+/* ---------- إضافة/تعديل عميل فرعى (لازم شركة) ---------- */
+App.cartonCustAdd=function(id,preCompanyId){const a=id?this.acct(id):null;const comps=this.cartonCompanies();
+  if(!comps.length&&!a){toast("أنشئ شركة أولاً ثم أضف العملاء الفرعيين","err");this.cartonCompanyAdd();return;}
+  const curComp=a?(a.data&&a.data.companyId):preCompanyId;
+  const compOpts=comps.map(c=>`<option value="${c.id}" ${c.id===curComp?'selected':''}>${esc(c.name)}</option>`).join("");
+  const locOpts=`<option value="">— حسب الشركة —</option>`+this.db.locations.map(l=>`<option value="${l.id}" ${a&&a.data&&a.data.locId===l.id?'selected':''}>${esc(l.name)}</option>`).join("");
+  this.modal(a?"✏️ تعديل عميل فرعى":"➕ عميل فرعى جديد",`<div class="fg">
+    <div class="field"><label>الشركة التابع لها</label><select id="ccComp">${compOpts}</select></div>
+    <div class="field"><label>اسم العميل الفرعى</label><input id="ccN" value="${a?esc(a.name):''}" placeholder="مثال: المتحدة / عماد طايل"></div>
+    <div class="field"><label>الهاتف</label><input id="ccPh" value="${a?esc((a.data&&a.data.phone)||''):''}"></div>
+    <div class="field"><label>الموقع (اختيارى)</label><select id="ccLoc">${locOpts}</select></div>
+    <div class="field" style="grid-column:span 2"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="ccUnited" ${a&&a.data&&a.data.unitedSource?'checked':''} style="width:16px;height:16px"> 🏠 هذا العميل = «المتحدة» (شغل الملك والشركاء) — يمكن جلب كرتونه من توريد الفراولة</label></div>
+    <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="ccNo" value="${a?esc((a.data&&a.data.notes)||''):''}"></div>
+   </div>
+   <div class="hint" style="margin-top:6px">العميل الفرعى بيظهر تحت الشركة بكشف تفصيلى، وتوريده بيتجمّع فى الكشف الإجمالى للشركة.</div>`,
+   `<button class="btn gold" id="ccS">💾 حفظ</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
+  $("#ccS").onclick=()=>{const n=$("#ccN").value.trim();if(!n){toast("اكتب اسم العميل","err");return;}const companyId=$("#ccComp").value;if(!companyId){toast("اختر الشركة","err");return;}
+    const data={carton:true,companyId,phone:$("#ccPh").value.trim(),locId:$("#ccLoc").value||null,notes:$("#ccNo").value.trim(),unitedSource:$("#ccUnited").checked};
+    if(a){a.name=n;a.data=Object.assign(a.data||{},data);
+      (this.db.cartonEntries||[]).filter(e=>e.custId===a.id).forEach(e=>this._cartonRepost(e));/* إعادة الترحيل لو اتغيرت الشركة */
+    }else{this.addAccount({node:"customer",name:n,cat:"كرتون عربى",data});}
+    this.save();this.closeModal();this.render();toast(a?"تم التعديل ✓":"✅ أُضيف العميل الفرعى");};};
+
+/* ---------- جلب كرتون المتحدة من توريد الفراولة ---------- */
+App.cartonPullUnited=function(subId){const sub=this.acct(subId);if(!sub)return;const v=this.cartonVars()[0];if(!v){toast("أضف صنفاً أولاً","err");return;}
+  const s=this.db.season;const byDate={};
+  (this.db.daily||[]).filter(e=>e.season===s&&e.kind==="supply").forEach(e=>{const q=Number(e.straw&&e.straw.cartonArabi&&e.straw.cartonArabi.qty)||0;if(!q)return;byDate[e.date]=(byDate[e.date]||0)+q;});
+  const dates=Object.keys(byDate);if(!dates.length){toast("لا يوجد كرتون عربى فى توريد الفراولة","err");return;}
+  this.confirmDel("سيتم جلب "+dates.length+" يوم من توريد الفراولة (كرتون عربى) إلى صنف «"+v.name+"» لهذا العميل. متابعة؟",()=>{
+    dates.forEach(d=>{this.addCartonDate(d);this.setCartonEntry(subId,d,v.id,byDate[d]);});
+    this.save();this.render();toast("✅ تم جلب "+dates.length+" يوم — راجع الأسعار لحساب المبالغ");},"جلب");};
+
+/* ---------- القائمة الرئيسية: الشركات ---------- */
+Pages.cartonClients=function(){App._ensureCarton();const comps=App.cartonCompanies();
+  let TQ=0,TA=0;comps.forEach(c=>{const t=App.cartonCompanyTotals(c.id);TQ+=t.qty;TA+=t.net;});
+  return head("🏢","شركات عملاء الكرتون العربى","كل شركة (عميل رئيسى) وتحتها عملاء فرعيين — توريد يومى بالصنف يسمع فى الحسابات تلقائياً",
+    `<button class="btn green sm" onclick="App.cartonCompanyAdd()">＋ شركة جديدة</button><button class="btn blue sm" onclick="App.go('cartonPrices')">💲 الأسعار</button><button class="btn gold sm" onclick="App.cartonVarManage()">🏷️ الأصناف</button>`)+`
+   <div class="grid kpis" style="margin-bottom:16px">
+    ${kpi("عدد الشركات",comps.length,"عميل رئيسى",'b','🏢')}
+    ${kpi("إجمالى الكراتين",numf(TQ),"كل الشركات",'g','📦')}
+    ${kpi("إجمالى القيمة (صافى)",m2(TA),"بعد الخصم",'gold','💰')}
+   </div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px">
+   ${comps.length?comps.map(c=>{const t=App.cartonCompanyTotals(c.id);const subs=App.cartonSubsOf(c.id);const b=App.balance(c.id);const loc=c.data&&c.data.locId?App.locById(c.data.locId):null;
+     return `<div class="card" style="overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 18px 40px -12px rgba(15,32,56,.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''" onclick="App.go('cartonCompany',{id:'${c.id}'})">
+       <div style="background:linear-gradient(135deg,#1747a8,#0e2536);color:#fff;padding:16px 18px">
+         <div style="display:flex;align-items:center;justify-content:space-between">
+           <div style="display:flex;align-items:center;gap:12px"><span style="width:46px;height:46px;border-radius:14px;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:22px">🏢</span>
+           <div><div style="font-weight:900;font-size:17px">${esc(c.name)}</div><div style="font-size:11.5px;opacity:.85">${subs.length} عميل فرعى${loc?' · '+esc(loc.name):''}</div></div></div>
+         </div>
+       </div>
+       <div class="card-b" style="padding:14px 16px">
+         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+           <div style="background:#eef6ff;border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:#64748b">الكراتين</div><div style="font-weight:900;font-size:16px;color:#1747a8">${numf(t.qty)}</div></div>
+           <div style="background:#fff7e6;border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:#64748b">الصافى</div><div style="font-weight:900;font-size:16px;color:#c98f1e">${money(t.net)}</div></div>
+         </div>
+         <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#64748b"><span>رصيد الحساب (عليه)</span><b style="color:${b>0?'var(--red)':'var(--green)'}">${money(b)}</b></div>
+         <div style="display:flex;gap:6px;margin-top:12px" onclick="event.stopPropagation()">
+           <button class="btn blue sm" style="flex:1;justify-content:center" onclick="App.go('cartonCompany',{id:'${c.id}'})">📂 فتح الشركة</button>
+           <button class="btn gh sm" onclick="App.go('statement',{id:'${c.id}'})">كشف حساب</button>
+           <button class="ib" onclick="App.cartonCompanyAdd('${c.id}')">✏️</button>
+           <button class="ib" onclick="App.cartonCompanyDel('${c.id}')">🗑️</button>
+         </div>
+       </div>
+     </div>`;}).join(""):`<div class="card" style="grid-column:1/-1"><div class="card-b empty" style="padding:40px;text-align:center"><div style="font-size:40px">🏢</div><div style="font-weight:800;margin:8px 0">لا شركات بعد</div><div class="hint">اضغط «＋ شركة جديدة» (مثل اجريكانا) ثم أضف تحتها العملاء الفرعيين</div></div></div>`}
+   </div>`;};
+Pages.cartonClients.meta={title:"شركات عملاء عربى",crumb:"عمليات سريعة توريد"};
+
+/* ---------- صفحة الشركة: فروع + كشف اجمالى ---------- */
+Pages.cartonCompany=function(){App._ensureCarton();const id=App.arg&&App.arg.id;const c=id?App.acct(id):null;
+  if(!c){App.go('cartonClients');return '';}
+  const subs=App.cartonSubsOf(id);const t=App.cartonCompanyTotals(id);const b=App.balance(id);
+  return head("🏢",c.name+" — عملاء فرعيين","كشف تفصيلى لكل عميل فرعى + كشف اجمالى للشركة · التوريد يسمع فى حساب الشركة تلقائياً",
+    `<button class="btn green sm" onclick="App.cartonCustAdd(null,'${id}')">＋ عميل فرعى</button><button class="btn purple sm" onclick="App.cartonCompanyAgg('${id}')">📊 الكشف الإجمالى</button><button class="btn blue sm" onclick="App.go('cartonPrices')">💲 الأسعار</button><button class="btn gh sm" onclick="App.go('statement',{id:'${id}'})">كشف الحساب</button><button class="btn gh sm" onclick="App.go('cartonClients')">↩ الشركات</button>`)+`
+   <div class="grid kpis" style="margin-bottom:14px">
+    ${kpi("عدد العملاء الفرعيين",subs.length,"",'b','👥')}
+    ${kpi("إجمالى الكراتين",numf(t.qty),"",'g','📦')}
+    ${kpi("إجمالى القيمة",m2(t.amt),"قبل الخصم",'gold','💰')}
+    ${kpi("رصيد الشركة (عليه)",m2(b),"مستحق لنا",'r','🧾')}
+   </div>
+   <div class="card"><div class="card-h">👥 العملاء الفرعيين</div><div class="card-b p0"><div class="tw">
+    <table class="t"><thead><tr><th class="r">العميل الفرعى</th><th>النوع</th><th>الكراتين</th><th>القيمة</th><th>الخصم</th><th>الصافى</th><th></th></tr></thead><tbody>
+    ${subs.length?subs.map(s=>{const st=App.cartonCustTotals(s.id);const united=s.data&&s.data.unitedSource;return `<tr class="linkrow" onclick="App.go('cartonClient',{id:'${s.id}'})"><td class="r"><b>${esc(s.name)}</b></td><td>${united?'<span class="pill g">🏠 المتحدة</span>':'<span class="pill n">عميل فرعى</span>'}</td><td class="num">${numf(st.qty)}</td><td class="num">${money(st.amt)}</td><td class="num">${money(st.disc)}</td><td class="num"><b>${money(st.net)}</b></td>
+      <td onclick="event.stopPropagation()"><button class="btn blue sm" onclick="App.go('cartonClient',{id:'${s.id}'})">📋 كشف يومى</button>${united?`<button class="btn gold sm" onclick="App.cartonPullUnited('${s.id}')" title="جلب كرتون عربى من توريد الفراولة">⬇️ جلب</button>`:''}<button class="ib" onclick="App.cartonCustAdd('${s.id}')">✏️</button><button class="ib" onclick="App.cartonCustDel('${s.id}')">🗑️</button></td></tr>`;}).join(""):`<tr><td colspan="7" class="empty"><div style="padding:20px"><div style="font-size:30px">👥</div>لا عملاء فرعيين — اضغط «＋ عميل فرعى» (مثل المتحدة، عماد طايل)</div></td></tr>`}
+    <tr style="font-weight:900;background:#f1f5f9"><td class="r">الإجمالى (الكشف الإجمالى)</td><td></td><td class="num">${numf(t.qty)}</td><td class="num">${money(t.amt)}</td><td class="num">${money(t.disc)}</td><td class="num">${money(t.net)}</td><td></td></tr>
+    </tbody></table></div></div></div>`;};
+Pages.cartonCompany.meta={title:"شركة كرتون عربى",crumb:"عمليات سريعة توريد"};
+
+/* الكشف الإجمالى للشركة (مجموع فروعها بالصنف واليوم) */
+App.cartonCompanyAgg=function(companyId){App._ensureCarton();const c=this.acct(companyId);const vars=this.cartonVars();const dates=this.cartonDatesList();const s=this.db.season;
+  const subIds=this.cartonSubsOf(companyId).map(x=>x.id);
+  const agg={};(this.db.cartonEntries||[]).filter(e=>e.season===s&&e.varId!=='disc'&&subIds.indexOf(e.custId)>=0).forEach(e=>{agg[e.date]=agg[e.date]||{};agg[e.date][e.varId]=agg[e.date][e.varId]||{q:0,a:0};agg[e.date][e.varId].q+=e.qty;agg[e.date][e.varId].a+=e.amount;});
+  let gq=0,ga=0;const varTot={};vars.forEach(v=>varTot[v.id]={q:0,a:0});
+  const headCols=vars.map(v=>`<th colspan="2" style="background:#13324a;color:#fff">${esc(v.name)}</th>`).join("");
+  const subCols=vars.map(()=>`<th>العدد</th><th>المبلغ</th>`).join("");
+  const rows=dates.map(d=>{let rq=0,ra=0;const cells=vars.map(v=>{const r=(agg[d]&&agg[d][v.id])||{q:0,a:0};rq+=r.q;ra+=r.a;varTot[v.id].q+=r.q;varTot[v.id].a+=r.a;return `<td class="num">${r.q?numf(r.q):'—'}</td><td class="num">${r.a?money(r.a):'—'}</td>`;}).join("");gq+=rq;ga+=ra;return `<tr><td style="white-space:nowrap;font-weight:700">${esc(fmtDate(d))}</td>${cells}<td class="num"><b>${rq?numf(rq):'—'}</b></td><td class="num"><b>${ra?money(ra):'—'}</b></td></tr>`;}).join("");
+  const totRow=`<tr style="font-weight:900;background:#f1f5f9"><td>الإجمالى</td>${vars.map(v=>`<td class="num">${numf(varTot[v.id].q)}</td><td class="num">${money(varTot[v.id].a)}</td>`).join("")}<td class="num">${numf(gq)}</td><td class="num">${money(ga)}</td></tr>`;
+  this.modal("📊 الكشف الإجمالى — "+esc(c?c.name:''),`
+    <div class="grid kpis" style="margin-bottom:10px">${kpi("إجمالى الكراتين",numf(gq),"",'g','📦')}${kpi("إجمالى القيمة",m2(ga),"",'gold','💰')}</div>
+    <div class="tw" style="max-height:60vh;overflow:auto"><table class="t" style="font-size:12.5px"><thead>
+     <tr><th rowspan="2" style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th>${headCols}<th colspan="2" style="background:#1f9d57;color:#fff">الإجمالى</th></tr>
+     <tr>${subCols}<th>العدد</th><th>المبلغ</th></tr></thead>
+     <tbody>${rows||`<tr><td colspan="${vars.length*2+3}" class="empty">لا بيانات</td></tr>`}${dates.length?totRow:''}</tbody></table></div>`,
+   `<button class="btn gh" onclick="App.cartonExportCompany('${companyId}')">📊 Excel</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);};
+
+App.cartonExportCompany=function(companyId){const c=this.acct(companyId);const vars=this.cartonVars();const dates=this.cartonDatesList();const s=this.db.season;
+  const subIds=this.cartonSubsOf(companyId).map(x=>x.id);
+  const agg={};(this.db.cartonEntries||[]).filter(e=>e.season===s&&e.varId!=='disc'&&subIds.indexOf(e.custId)>=0).forEach(e=>{agg[e.date]=agg[e.date]||{};agg[e.date][e.varId]=agg[e.date][e.varId]||{q:0,a:0};agg[e.date][e.varId].q+=e.qty;agg[e.date][e.varId].a+=e.amount;});
+  const rows=this.xlsxHeaderRows("الكشف الإجمالى — "+((c&&c.name)||''),1+vars.length*2+2);
+  const h1=[{v:"التاريخ",s:"hdr"}];vars.forEach(v=>h1.push({v:v.name,s:"hdr"},{v:"",s:"hdr"}));h1.push({v:"إجمالى العدد",s:"hdr"},{v:"إجمالى المبلغ",s:"hdr"});rows.push(h1);
+  dates.forEach(d=>{let rq=0,ra=0;const row=[{v:fmtDate(d),s:"txt"}];vars.forEach(v=>{const r=(agg[d]&&agg[d][v.id])||{q:0,a:0};rq+=r.q;ra+=r.a;row.push({v:r.q||"",s:"num"},{v:r.a||"",s:"num"});});row.push({v:rq||"",s:"num"},{v:ra||"",s:"num"});rows.push(row);});
+  this.exportXLS("كشف_اجمالى_"+((c&&c.name)||""),[{name:"الكشف الإجمالى",rows,widths:[12].concat(vars.flatMap(()=>[9,11])).concat([12,14])}]);};
+
+/* breadcrumb على كشف العميل الفرعى — زر رجوع للشركة */
+(function(){const orig=Pages.cartonClient;Pages.cartonClient=function(){const html=orig.apply(this,arguments);
+  const id=App.arg&&App.arg.id;const comp=id?App.cartonCompanyOf(id):null;
+  if(comp){setTimeout(()=>{try{const act=document.querySelector("#view .actionsRow,#view [style*='margin-inline-start:auto']");}catch(e){}},0);
+    return html.replace('↩ العملاء',"↩ "+esc(comp.name)).replace("App.go('cartonClients')","App.go('cartonCompany',{id:'"+comp.id+"'})");}
+  return html;};})();
+
+/* السماح بفتح صفحات الشركة/الفرعى (تتحقق بصلاحية cartonClients) */
+(function(){const orig=App.canPage.bind(App);App.canPage=function(route){if(route==="cartonCompany"||route==="cartonClient")return orig("cartonClients");return orig(route);};})();
+
+/* نهاية حزمة المتحدة v4 */
+
 App.boot();
 </script>
 </body>
