@@ -16983,6 +16983,80 @@ App._cartonRepost=function(e){
 
 /* نهاية حزمة المتحدة v6 */
 
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v7 — خامات التعبئة بأعمدة ومعادلات شيت النيل (تلقائى)      ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* عدد الكرتون المورد للشركة لكل يوم (= الصفحة الرئيسة) */
+App.cartonCompanyDaily=function(companyId){const s=this.db.season;const subIds=this.cartonSubsOf(companyId).map(x=>x.id);const byDate={};
+  (this.db.cartonEntries||[]).filter(e=>e.season===s&&e.varId!=='disc'&&subIds.indexOf(e.custId)>=0).forEach(e=>{byDate[e.date]=(byDate[e.date]||0)+(Number(e.qty)||0);});
+  return byDate;};
+
+/* خامات افتراضية لكل شركة بمعادلات النيل:
+   عدد البرانيك = كرتون/2 · البانت k37 = كرتون×10 · الفواصل = كرتون/2 · البانت احمر/غير = يدوى */
+App.PACK_DEFAULTS=[
+  {name:"عدد البرانيك",perCarton:0.5,order:1},
+  {name:"البانت k37",perCarton:10,order:2},
+  {name:"البانت احمر",perCarton:0,order:3},
+  {name:"البانت غير",perCarton:0,order:4},
+  {name:"الفواصل",perCarton:0.5,order:5},
+];
+App.packEnsureDefaults=function(companyId){this._ensurePack();if(this.packMatsOf(companyId).length)return;
+  this.PACK_DEFAULTS.forEach(m=>{this.db.packMats.push({id:uid(),season:this.db.season,companyId,name:m.name,perCarton:m.perCarton,order:m.order});});
+  this.save();};
+App.packMatsOf=function(companyId){this._ensurePack();const s=this.db.season;return (this.db.packMats||[]).filter(m=>m.season===s&&m.companyId===companyId).sort((a,b)=>(a.order||99)-(b.order||99));};
+
+/* تأكيد الخامات الافتراضية لكل الشركات (مع تأكيد المتحدة) */
+(function(){const orig=App.cartonEnsureAllUnited;if(typeof orig==="function"){App.cartonEnsureAllUnited=function(){orig.apply(this,arguments);try{this.cartonCompanies().forEach(c=>this.packEnsureDefaults(c.id));}catch(e){}};}})();
+/* عند فتح صفحة الخامات: تأكيد الافتراضيات */
+(function(){const orig=Pages.packMats;if(typeof orig==="function"){Pages.packMats=function(){try{const id=App.arg&&App.arg.id;if(id)App.packEnsureDefaults(id);}catch(e){}return orig.apply(this,arguments);};}})();
+
+/* 📋 كشف يومى زى الإكسيل: وارد/صادر/رصيد لكل خامة */
+App.packLedgerData=function(companyId){const s=this.db.season;const mats=this.packMatsOf(companyId);const daily=this.cartonCompanyDaily(companyId);
+  const inMap={};(this.db.packIn||[]).filter(x=>x.season===s&&x.companyId===companyId).forEach(x=>{inMap[x.date]=inMap[x.date]||{};inMap[x.date][x.matId]=(inMap[x.date][x.matId]||0)+(Number(x.qty)||0);});
+  const dset={};Object.keys(daily).forEach(d=>dset[d]=1);Object.keys(inMap).forEach(d=>dset[d]=1);
+  const dates=Object.keys(dset).sort();
+  const bal={};mats.forEach(m=>bal[m.id]=0);
+  const rows=dates.map(d=>{const cartons=daily[d]||0;const cells=mats.map(m=>{const inQ=(inMap[d]&&inMap[d][m.id])||0;const out=cartons*(Number(m.perCarton)||0);bal[m.id]+=inQ-out;return {inQ,out,bal:bal[m.id]};});return {date:d,cartons,cells};});
+  const tot={cartons:0,cells:mats.map(()=>({inQ:0,out:0,bal:0}))};
+  rows.forEach(r=>{tot.cartons+=r.cartons;r.cells.forEach((c,i)=>{tot.cells[i].inQ+=c.inQ;tot.cells[i].out+=c.out;});});
+  mats.forEach((m,i)=>tot.cells[i].bal=tot.cells[i].inQ-tot.cells[i].out);
+  return {mats,rows,tot};};
+
+App.packDailyLedger=function(companyId){const c=this.acct(companyId);const D=this.packLedgerData(companyId);const mats=D.mats;
+  const grp=mats.map(m=>`<th colspan="3" style="background:#0e2536;color:#fff">${esc(m.name)}</th>`).join("");
+  const sub=mats.map(()=>`<th style="background:#1747a8;color:#fff">وارد</th><th style="background:#b91c1c;color:#fff">صادر</th><th style="background:#0e7490;color:#fff">رصيد</th>`).join("");
+  const body=D.rows.map(r=>`<tr><td style="white-space:nowrap;font-weight:700;background:#f8fafc">${esc(fmtDate(r.date))}</td><td class="num"><b>${numf(r.cartons)}</b></td>${r.cells.map(c=>`<td class="num" style="color:#1747a8">${c.inQ?numf(c.inQ):'—'}</td><td class="num" style="color:#b91c1c">${c.out?numf(c.out):'—'}</td><td class="num"><b style="color:${c.bal<0?'var(--red)':'var(--green)'}">${numf(c.bal)}</b></td>`).join("")}</tr>`).join("");
+  const totRow=`<tr style="font-weight:900;background:#f1f5f9"><td>الإجمالى</td><td class="num">${numf(D.tot.cartons)}</td>${D.tot.cells.map(c=>`<td class="num">${numf(c.inQ)}</td><td class="num">${numf(c.out)}</td><td class="num">${numf(c.bal)}</td>`).join("")}</tr>`;
+  this.modal("📋 كشف خامات يومى (زى الإكسيل) — "+esc(c?c.name:''),`
+    <div class="hint" style="margin-bottom:8px;padding:8px;background:rgba(46,109,240,.08);border-radius:8px">الصادر يُحسب تلقائياً من عدد الكرتون المورد يومياً حسب معدل كل خامة · الرصيد تراكمى (وارد − صادر). سجّل الوارد فقط من «استلام خامة».</div>
+    <div class="tw" style="max-height:62vh;overflow:auto"><table class="t" style="font-size:12px"><thead>
+      <tr><th rowspan="2" style="background:#0e2536;color:#fff;position:sticky;top:0">التاريخ</th><th rowspan="2" style="background:#7c3aed;color:#fff">عدد كرتون</th>${grp}</tr>
+      <tr>${sub}</tr></thead>
+      <tbody>${body||`<tr><td colspan="${mats.length*3+2}" class="empty">لا بيانات بعد</td></tr>`}${D.rows.length?totRow:''}</tbody></table></div>`,
+   `<button class="btn gh" onclick="App.packExportLedger('${companyId}')">📊 Excel</button><button class="btn gh" onclick="App.packPrintLedger('${companyId}')">🖨️ طباعة</button><button class="btn gh" onclick="App.closeModal()">إغلاق</button>`,true);};
+
+App.packPrintLedger=function(companyId){const c=this.acct(companyId);const D=this.packLedgerData(companyId);const mats=D.mats;
+  let body=`<table><thead><tr><th>التاريخ</th><th>عدد كرتون</th>${mats.map(m=>`<th>${esc(m.name)} وارد</th><th>صادر</th><th>رصيد</th>`).join("")}</tr></thead><tbody>`;
+  D.rows.forEach(r=>{body+=`<tr><td>${esc(fmtDate(r.date))}</td><td>${numf(r.cartons)}</td>${r.cells.map(c=>`<td>${c.inQ||'—'}</td><td>${c.out?numf(c.out):'—'}</td><td>${numf(c.bal)}</td>`).join("")}</tr>`;});
+  body+=`<tr style="font-weight:900;background:#f1f5f9"><td>الإجمالى</td><td>${numf(D.tot.cartons)}</td>${D.tot.cells.map(c=>`<td>${numf(c.inQ)}</td><td>${numf(c.out)}</td><td>${numf(c.bal)}</td>`).join("")}</tr></tbody></table>`;
+  this.printDoc("كشف خامات يومى — "+(c?c.name:''),body,"موسم "+this.db.season);};
+App.packExportLedger=function(companyId){const c=this.acct(companyId);const D=this.packLedgerData(companyId);const mats=D.mats;const cols=2+mats.length*3;
+  const rows=this.xlsxHeaderRows("كشف خامات يومى — "+((c&&c.name)||''),cols);
+  const h=[{v:"التاريخ",s:"hdr"},{v:"عدد كرتون",s:"hdr"}];mats.forEach(m=>h.push({v:m.name+" وارد",s:"hdr"},{v:"صادر",s:"hdr"},{v:"رصيد",s:"hdr"}));rows.push(h);
+  D.rows.forEach(r=>{const row=[{v:fmtDate(r.date),s:"txt"},{v:r.cartons,s:"num"}];r.cells.forEach(c=>row.push({v:c.inQ||"",s:"num"},{v:c.out||"",s:"num"},{v:c.bal,s:"num"}));rows.push(row);});
+  const tr=[{v:"الإجمالى",s:"hdr"},{v:D.tot.cartons,s:"num"}];D.tot.cells.forEach(c=>tr.push({v:c.inQ,s:"num"},{v:c.out,s:"num"},{v:c.bal,s:"num"}));rows.push(tr);
+  this.exportXLS("خامات_يومى_"+((c&&c.name)||""),[{name:"خامات",rows,widths:[12,10].concat(mats.flatMap(()=>[10,10,10]))}]);};
+
+/* زر الكشف اليومى على صفحة الخامات */
+(function(){const orig=Pages.packMats;Pages.packMats=function(){const html=orig.apply(this,arguments);const id=App.arg&&App.arg.id;if(!id)return html;
+  return html.replace('📊 Excel</button>','📊 Excel</button><button class="btn gold sm" onclick="App.packDailyLedger(\''+id+'\')">📋 كشف يومى (زى الإكسيل)</button>');};})();
+
+/* ترحيل: تأكيد الخامات الافتراضية لكل الشركات */
+(function(){try{if(App.db&&App.db._packModelV!==1){App._ensurePack&&App._ensurePack();App.cartonCompanies&&App.cartonCompanies().forEach(c=>App.packEnsureDefaults(c.id));App.db._packModelV=1;App.save&&App.save();}}catch(e){}})();
+
+/* نهاية حزمة المتحدة v7 */
+
 App.boot();
 </script>
 </body>
