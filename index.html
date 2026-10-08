@@ -3583,7 +3583,7 @@ Pages.partners=function(arg){const loc=(arg&&typeof arg.loc!=='undefined')?arg.l
   const rows=list.map(a=>({a,s:App.partnerStat(a)}));
   const T=rows.reduce((o,r)=>{["area","netDebt","labor","exp","cartonLocal","local","totalRev","payExport","payLocal","netExport","netLocal","netTotal","leAleh","profit","costs"].forEach(k=>o[k]=(o[k]||0)+r.s[k]);return o},{});
   return head("🤝","الشركاء وموقفهم","موقف كل شريك: المديونيات، الإيرادات بالتصدير/الكرتون/المحلي، الدفعات، والصافي له/عليه",
-    `<button class="btn blue sm" onclick="App.strawInvoice('partner')">🍓 توريد فراولة</button><button class="btn gold sm" onclick="App.partnerPayment()">💸 دفعة</button><button class="btn green sm" onclick="App.partnerExtraCost()">＋ تكلفة إضافية</button><button class="btn gh sm" onclick="App.printAllPartners()" title="طباعة كشوف الشركاء ${loc?('لموقع '+esc(locName?locName.name:'')):'لكل المواقع'} — كل شريك في صفحة">🖨️ كشوف الشركاء${loc&&locName?(' — '+esc(locName.name)):''}</button>`)+`
+    `<button class="btn gold sm" onclick="App.strawInvoice('own')">🏠 توريد من الملك</button><button class="btn blue sm" onclick="App.strawInvoice('partner')">🍓 توريد فراولة</button><button class="btn gold sm" onclick="App.partnerPayment()">💸 دفعة</button><button class="btn green sm" onclick="App.partnerExtraCost()">＋ تكلفة إضافية</button><button class="btn gh sm" onclick="App.printAllPartners()" title="طباعة كشوف الشركاء ${loc?('لموقع '+esc(locName?locName.name:'')):'لكل المواقع'} — كل شريك في صفحة">🖨️ كشوف الشركاء${loc&&locName?(' — '+esc(locName.name)):''}</button>`)+`
    <div class="card"><div class="card-b">${chips}</div></div>
    <div class="grid kpis" style="margin-bottom:14px">${kpi(loc&&locName?('شركاء '+locName.name):"عدد الشركاء",list.length,loc?("من "+all.length):"",'b','🤝')}${kpi("إجمالي الإيرادات",m2(T.totalRev),"",'g','💰')}${kpi("إجمالي المديونيات",m2(T.netDebt),"تكاليف + عمالة",'r','🧮')}${kpi("صافي المركز",m2(T.leAleh),T.leAleh>=0?'لهم':'عليهم',T.leAleh>=0?'g':'r','⚖️')}</div>
    <div class="card"><div class="card-h">📊 موقف الشركاء الشامل</div><div class="card-b p0"><div class="tw">
@@ -4840,7 +4840,7 @@ App.addDraft=function(type,payload,summary,amount){this.db.drafts.push({id:uid()
 App.delDraft=function(id){this.db.drafts=this.db.drafts.filter(d=>d.id!==id);this.save();this.render()};
 App.journalAdd=function(kind){if(!this._journalDate){toast("حدّد تاريخ اليومية أولاً","err");return}
   const jd=this._journalDate;
-  ({supplyext:()=>this.strawInvoice('ext',null,null,'mafrash'),supplypart:()=>this.strawInvoice('partner',null,null,'mafrash'),cost:()=>this.mafrashCost(),factory:()=>this.factoryDelivery(),farza:()=>this.farzaSale()})[kind]();
+  ({supplyown:()=>this.strawInvoice('own',null,null,'mafrash'),supplyext:()=>this.strawInvoice('ext',null,null,'mafrash'),supplypart:()=>this.strawInvoice('partner',null,null,'mafrash'),cost:()=>this.mafrashCost(),factory:()=>this.factoryDelivery(),farza:()=>this.farzaSale()})[kind]();
   this._draftMode=true;this._journalDate=jd;
   const df={supplyext:'stDate',supplypart:'stDate',cost:'mcDate',factory:'fdDate',farza:'fzDate'}[kind];
   const el=document.getElementById(df);if(el){el.value=jd;el.readOnly=true;el.style.background="#eef1f4"}};
@@ -5023,6 +5023,7 @@ Pages.mafrash=function(){const S=App.mafrashSummary();const mid=App.mafrashAcct(
        <div class="field"><label>تاريخ اليومية</label><input type="date" value="${esc(jd)}" onchange="App.setJournalDate(this.value);App.render()"></div>
        <span class="pill gold" style="font-size:14px">📆 <span id="jdDay">${esc(App.dayName(jd))}</span></span>
        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-inline-start:auto">
+         <button class="btn gold sm" onclick="App.journalAdd('supplyown')">🏠 توريد من الملك</button>
          <button class="btn blue sm" onclick="App.journalAdd('supplyext')">🍓 توريد خارجي</button>
          <button class="btn blue sm" onclick="App.journalAdd('supplypart')">🤝 توريد شريك</button>
          <button class="btn gold sm" onclick="App.journalAdd('cost')">➕ تكلفة</button>
@@ -17179,6 +17180,45 @@ App.iqfExport=function(){const rs=this.iqfRows();const T=this.iqfTotals();const 
   return arr;};})();
 
 /* نهاية حزمة المتحدة v8 */
+
+/* ╔══════════════════════════════════════════════════════════════════════════╗
+   ║  🚀 حزمة المتحدة v9 — إصلاح تسجيل الدخول للمستخدمين الجدد (offline/سحابى)   ║
+   ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+/* دالة تشفير كلمة السر (كانت ناقصة → كان الباسورد يُخزَّن خام) */
+App._hashPass=function(s){return this._credHash(s||"");};
+
+/* تسجيل دخول متين: يطابق username أو uh، والباسورد مشفّر أو خام (للحسابات القديمة) + فحص الصلاحية */
+App.doLogin=function(){
+  const uEl=document.getElementById("lgU"),pEl=document.getElementById("lgP");
+  const u=(((uEl&&uEl.dataset&&uEl.dataset.real)||"")+"").trim().toLowerCase();
+  const p=(((pEl&&pEl.dataset&&pEl.dataset.real)||"")+"");
+  const uh=this._credHash(u),ph=this._credHash(p);
+  const matchU=(x)=>{if(x.uh)return x.uh===uh;const un=((x.u||x.username||"")+"").trim().toLowerCase();return !!un&&un===u;};
+  const matchP=(x)=>{if(x.ph)return x.ph===ph||x.ph===p;if(x.p!=null)return (""+x.p)===p;return p==="";};
+  const found=(this.db.users||[]).find(x=>matchU(x)&&matchP(x));
+  if(!found){const e=document.getElementById("lgErr");if(e){e.textContent="بيانات الدخول غير صحيحة — تأكّد من اسم الدخول وكلمة المرور";e.style.display="block";}return;}
+  if(!found.admin&&found.lic&&found.lic.until&&new Date()>new Date(found.lic.until+"T23:59:59")){const e=document.getElementById("lgErr");if(e){e.textContent="انتهت صلاحية تفعيل هذا المستخدم — برجاء مراجعة المدير للتجديد";e.style.display="block";}return;}
+  this.auth.user=found;this.writeSession(found.id);try{this._captureIP();}catch(e){}this.startApp();try{this.logAudit("تسجيل دخول","دخل المستخدم إلى النظام");}catch(e){}if(this.playSound){try{this.playSound("login");}catch(e){}}
+};
+
+/* عند حفظ مستخدم: خزّن uh + باسورد مشفّر دائماً */
+(function(){const orig=App._saveUserAdvanced;if(typeof orig!=="function")return;App._saveUserAdvanced=function(id){
+  const uname=((document.getElementById("uAdvUname")||{}).value||"").trim();
+  const r=orig.apply(this,arguments);
+  try{let t=id?this.db.users.find(x=>x.id===id):this.db.users[this.db.users.length-1];
+    if(t){if(uname){t.username=uname;t.uh=this._credHash(uname.toLowerCase());}
+      if(t.ph&&!/^[0-9a-f]{64}$/i.test(t.ph))t.ph=this._credHash(t.ph);
+      this.save();}
+  }catch(e){}return r;};})();
+
+/* ترحيل لمرة واحدة: إصلاح الحسابات القديمة (uh ناقص / باسورد خام) */
+(function(){try{if(App.db&&!App.db._authFixV2){(App.db.users||[]).forEach(u=>{if(u.admin)return;
+    const nm=(u.username||u.u||"").trim();if(nm&&!u.uh)u.uh=App._credHash(nm.toLowerCase());
+    if(u.ph&&!/^[0-9a-f]{64}$/i.test(u.ph))u.ph=App._credHash(u.ph);
+  });App.db._authFixV2=1;App.save&&App.save();}}catch(e){}})();
+
+/* نهاية حزمة المتحدة v9 */
 
 App.boot();
 </script>
