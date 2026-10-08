@@ -16150,7 +16150,11 @@ Pages.directops.meta={title:"العمليات المباشرة على التكا
 /* ＋ تسجيل عملية/تكلفة مباشرة على بند */
 App.directAdd=function(etId,side,pre){if(App._roBlock("تسجيل عملية تكلفة"))return;const loc=App.locById(App._directLoc);if(!loc){toast("اختر موقعاً","err");return;}
   const et=this.db.expenseTypes.find(x=>x.id===etId);const mc=this.mainCrop(loc);
-  const src=this.accountSelect(["treasury","custody","bank","supplier","extstraw"]);
+  const preCredit=pre&&pre.credit?pre.credit:null;const preAcc=preCredit?this.acct(preCredit):null;
+  const preIsCredit=preAcc&&['supplier','extstraw','factory'].indexOf(preAcc.node)>=0;
+  const cashSrc=this.accountSelect(["treasury","custody","bank"],preIsCredit?null:preCredit);
+  const credSrc=this.accountSelect(["supplier","extstraw","factory"],preIsCredit?preCredit:null);
+  const hasCred=this.accountsBy("supplier").length+this.accountsBy("extstraw").length+this.accountsBy("factory").length>0;
   const parts=side==='own'
     ?`<option value="own" selected>🏠 على الملك ١٠٠٪</option>`
     :`<option value="partner" selected>🤝 مشترك ٥٠/٥٠ مع الشركاء</option><option value="own">🏠 على الملك فقط</option><option value="special">👤 على شريك معيّن فقط</option>`;
@@ -16163,19 +16167,31 @@ App.directAdd=function(etId,side,pre){if(App._roBlock("تسجيل عملية ت�
     <div class="field" style="grid-column:span 2"><label>البيان / الوصف</label><input id="doDesc" value="${pre?esc(pre.desc||''):''}" placeholder="مثال: ${esc(et?et.name:'تكلفة')} — ${esc(loc.name)}"></div>
     <div class="field"><label>التحميل</label><select id="doPart" onchange="App._doPartChange()">${parts}</select></div>
     <div class="field" id="doPartnerWrap" style="display:none"><label>الشريك</label><select id="doPartner">${partnerOpts}</select></div>
-    <div class="field" style="grid-column:span 2"><label>مصدر السداد / صرف من</label><select id="doSrc">${src}</select></div>
+    <div class="field"><label>طريقة السداد</label><select id="doPay" onchange="App._doPayChange()">
+       <option value="cash" ${preIsCredit?'':'selected'}>💵 نقدى (من الخزينة/العهدة/البنك)</option>
+       <option value="credit" ${preIsCredit?'selected':''}>📋 بالأجل (على مورد / جهة)</option>
+     </select></div>
+    <div class="field" id="doCashWrap" style="display:${preIsCredit?'none':''}"><label>صرف من</label><select id="doSrcCash">${cashSrc}</select></div>
+    <div class="field" id="doCredWrap" style="display:${preIsCredit?'':'none'};grid-column:span 2"><label>المورد / الجهة (الدائن — بالأجل)</label>${hasCred?`<select id="doSrcCred">${credSrc}</select>`:`<div style="display:flex;gap:8px;align-items:center"><select id="doSrcCred" disabled><option>لا موردين</option></select><button class="btn gold sm" type="button" onclick="App.closeModal();App.openFor('supplier')">＋ مورد جديد</button></div>`}</div>
    </div>
-   <div class="hint" style="margin-top:6px;padding:8px;background:rgba(30,134,89,.08);border-radius:8px">القيد: مدين على التكلفة (${esc(et?et.name:'')}) للموقع ${esc(loc.name)} ودائن على مصدر السداد. ${side==='shared'?'المشترك: نصف القيمة يُرحّل للشركاء.':'على الملك ١٠٠٪.'}</div>`,
+   <div class="hint" id="doHint" style="margin-top:6px;padding:8px;background:rgba(30,134,89,.08);border-radius:8px"></div>`,
    `<button class="btn green" id="doS">💾 حفظ العملية</button><button class="btn gh" onclick="App.closeModal()">إلغاء</button>`,true);
-  this._directCtx={etId,side};$("#doS").onclick=()=>this._directSave();};
+  this._directCtx={etId,side};this._doPayChange();$("#doS").onclick=()=>this._directSave();};
 App._doPartChange=function(){const v=($("#doPart")||{}).value;const w=$("#doPartnerWrap");if(w)w.style.display=v==='special'?'':'none';};
+App._doPayChange=function(){const v=($("#doPay")||{}).value;const c=$("#doCashWrap"),cr=$("#doCredWrap"),h=$("#doHint");const ctx=this._directCtx||{};const et=this.db.expenseTypes.find(x=>x.id===ctx.etId);const loc=App.locById(App._directLoc);
+  if(c)c.style.display=v==='cash'?'':'none';if(cr)cr.style.display=v==='credit'?'':'none';
+  if(h)h.innerHTML=v==='credit'
+    ?`القيد: <b>مدين على التكلفة</b> (${esc(et?et.name:'')} — ${esc(loc?loc.name:'')}) + <b>دائن على المورد/الجهة</b> (يظهر فى رصيده كمستحق عليك — بالأجل). ${ctx.side==='shared'?'المشترك: نصف القيمة يُرحّل للشركاء.':'على الملك ١٠٠٪.'}`
+    :`القيد: <b>مدين على التكلفة</b> (${esc(et?et.name:'')} — ${esc(loc?loc.name:'')}) + <b>دائن على الخزينة/العهدة/البنك</b> (سداد نقدى). ${ctx.side==='shared'?'المشترك: نصف القيمة يُرحّل للشركاء.':'على الملك ١٠٠٪.'}`;};
 App._directSave=function(){const ctx=this._directCtx||{};const loc=App.locById(App._directLoc);const et=this.db.expenseTypes.find(x=>x.id===ctx.etId);
   const date=$("#doDate").value;const amount=Number($("#doAmt").value)||0;const doc=$("#doDoc").value.trim();const desc=$("#doDesc").value.trim()||((et?et.name:"تكلفة")+" — "+loc.name);
-  const part=$("#doPart").value;const source=$("#doSrc").value;const partnerId=part==='special'?($("#doPartner")||{}).value:null;
-  if(!amount){toast("أدخل المبلغ","err");return;}if(!source){toast("اختر مصدر السداد","err");return;}
+  const part=$("#doPart").value;const pay=($("#doPay")||{}).value;const partnerId=part==='special'?($("#doPartner")||{}).value:null;
+  const source=pay==='credit'?(($("#doSrcCred")||{}).value||""):(($("#doSrcCash")||{}).value||"");
+  if(!amount){toast("أدخل المبلغ","err");return;}
+  if(!source){toast(pay==='credit'?"اختر المورد / الجهة":"اختر مصدر الصرف","err");return;}
   const mc=this.mainCrop(loc);const grp=uid();
-  this.postExpense({date,doc,desc,amount,source,cropId:mc?mc.id:null,locId:loc.id,part,expTypeId:ctx.etId,partnerId,kind:"expense",meta:{directOp:1,grp,side:ctx.side}});
-  this.save();this.closeModal();this.render();toast("✅ تم تسجيل العملية — انعكست فى كل الحسابات");};
+  this.postExpense({date,doc,desc,amount,source,cropId:mc?mc.id:null,locId:loc.id,part,expTypeId:ctx.etId,partnerId,kind:"expense",meta:{directOp:1,grp,side:ctx.side,onCredit:pay==='credit'?1:0}});
+  this.save();this.closeModal();this.render();toast(pay==='credit'?"✅ سُجّلت التكلفة بالأجل على الجهة":"✅ تم تسجيل العملية — انعكست فى كل الحسابات");};
 
 /* 📄 كشف حركات بند على موقع */
 App.directStatement=function(etId,side){const loc=App.locById(App._directLoc);const et=this.db.expenseTypes.find(x=>x.id===etId);
@@ -16203,7 +16219,7 @@ App.directDel=function(grp,etId,side){this.confirmDel("حذف هذه العمل�
 App.directEdit=function(grp,etId,side){const own=this.ownerAcct().id;
   const main=(this.db.postings||[]).find(p=>p.meta&&p.meta.grp===grp&&p.credit!==own);
   if(!main){toast("تعذّر إيجاد العملية","err");return;}
-  const pre={date:main.date,amount:main.amount,doc:main.doc,desc:main.desc};
+  const pre={date:main.date,amount:main.amount,doc:main.doc,desc:main.desc,credit:main.credit};
   // لو جزء منها أنصبة شركاء، المبلغ الأساسى هو سطر الملك (الأكبر الذى يَدين الملك)؛ نأخذ السطر غير المرحّل للملك كأساس
   this._directDelGroup(grp);this.save();this.closeModal();this.directAdd(etId,side,pre);};
 
